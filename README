@@ -1,0 +1,11 @@
+Job Execution Service (JEX)
+===========================
+
+This service accepts analysis submissions in the form of JSON submitted by the Discovery Environment and turns it into Condor DAG and job submission files. It then submits it to the Condor cluster by running condor_submit_dag.
+
+
+NOTICE
+======
+
+This code is being released purely to be more open. A complete rewrite in Clojure is currently in development. This code is primarily intended as a reference.
+
