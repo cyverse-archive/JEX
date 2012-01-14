@@ -24,7 +24,7 @@
 
 (defn listen-port
   []
-  (get @jex-props "jex.app.listen-port"))
+  (Integer/parseInt (get @jex-props "jex.app.listen-port")))
 
 (defn do-submission
   [request]
