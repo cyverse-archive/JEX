@@ -19,8 +19,8 @@ Source0: %{name}-%{version}.tar.gz
 iPlant JEX
 
 %pre
-getent group iplant > /dev/null || groupadd -r iplant
-getent passwd iplant > /dev/null || useradd -r -g iplant -d /home/iplant -s /bin/bash -c "User for the iPlant services." iplant
+getent group condor > /dev/null || groupadd -r condor
+getent passwd condor > /dev/null || useradd -r -g condor -d /home/iplant -s /bin/bash -c "User for the iPlant services." iplant
 exit 0
 
 %prep
@@ -63,16 +63,16 @@ lein clean
 rm -r lib/*
 
 %files
-%attr(-,iplant,iplant) /usr/local/lib/jex/
-%attr(-,iplant,iplant) /var/run/jex/
-%attr(-,iplant,iplant) /var/lock/subsys/jex/
-%attr(-,iplant,iplant) /var/log/jex/
-%attr(-,iplant,iplant) /etc/jex/
+%attr(-,condor,condor) /usr/local/lib/jex/
+%attr(-,condor,condor) /var/run/jex/
+%attr(-,condor,condor) /var/lock/subsys/jex/
+%attr(-,condor,condor) /var/log/jex/
+%attr(-,condor,condor) /etc/jex/
 
-%config %attr(0644,iplant,iplant) /etc/jex/log4j.properties
-%config %attr(0644,iplant,iplant) /etc/jex/jex.properties
+%config %attr(0644,condor,condor) /etc/jex/log4j.properties
+%config %attr(0644,condor,condor) /etc/jex/jex.properties
 
 %attr(0755,root,root) /etc/init.d/jex
-%attr(0644,iplant,iplant) /usr/local/lib/jex/jex-1.0.0-SNAPSHOT-standalone.jar
+%attr(0644,condor,condor) /usr/local/lib/jex/jex-1.0.0-SNAPSHOT-standalone.jar
 
 

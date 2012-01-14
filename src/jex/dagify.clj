@@ -165,7 +165,7 @@
         dag-fpath    (dag-path working-dir)
         dag-contents (gen-dag-contents working-dir output-dir dag)]
     ;;Create the working dir and the log directory.
-    (log/info (str "Creating submission directories: " dag-fpath))
+    (log/info (str "Creating submission directories: " (ut/dirname dag-fpath)))
     (.mkdirs (File. (ut/dirname dag-fpath)))
     
     ;;Make the local log directory
