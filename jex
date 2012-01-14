@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # chkconfig: 2345 20 80
-# description: iPlant Job Execution Service
+# description: iPlant Notification Agent
 
 . /etc/init.d/functions
 
@@ -9,21 +9,20 @@
 # Specific script configuration
 # Change these as needed to run a specific nodejs program.
 ################################################################################
-RUNUSER=condor
+RUNUSER=iplant
+program=jex
+jarfile=jex-1.0.0-SNAPSHOT-standalone.jar
+jar=/usr/local/lib/${program}/${jarfile}
+conf=/etc/${program}
+mainclass=${program}.core
 
-program=iplant-jobexec
-script=/usr/local/lib/node/jobexec/jobexec.js
-conf=/etc/iplant-jobexec.conf
-NODE_PATH_EXTRAS=/usr/local/lib/node/jobexec
 ################################################################################
 
 ################################################################################
 # Generic paths
 # None of these should need to be changed to execute a nodejs script unless 
 # there is specific configuration that is needed for the script.
-################################################################################
-launch=/usr/local/bin/node-launch.py
-node=/usr/local/bin/node
+################################################################################ 
 piddir=/var/run/$program
 pidfile=/var/run/$program/$program.pid
 lockfile=/var/lock/subsys/$program
@@ -32,17 +31,9 @@ RETVAL=0
 
 start () {
     echo -n $"Starting $program: "
-    
-    # Make a dir for the  pid file
-    mkdir -p $piddir
-    chown $RUNUSER:$RUNUSER $piddir
-
-    mkdir -p $logdir
-    chown $RUNUSER:$RUNUSER $logdir
-
-    NODE_PATH=$NODE_PATH:/usr/local/lib/node:$NODE_PATH_EXTRAS
-    runuser -s /bin/bash -l $RUNUSER -c "NODE_PATH=${NODE_PATH} ${launch} ${node} ${script} ${conf} ${pidfile}"
+    runuser -m -s /bin/bash -l $RUNUSER -c "nohup java -cp .:${conf}:${jar} ${mainclass}" < /dev/null &> ${logdir}/launch.log &
     RETVAL=$?
+    echo $! > ${pidfile}
 
     [ $RETVAL = 0 ] && success && touch ${lockfile}
     [ $RETVAL -ne 0 ] && failure
@@ -56,18 +47,28 @@ stop () {
     killproc -p ${pidfile}
     RETVAL=$?
     echo
-    [ $RETVAL = 0 ] && rm -rf ${lockfile} ${piddir}
+    [ $RETVAL = 0 ] && rm -rf ${lockfile} ${pidfile}
 }
 
 restart () {
-    echo -n $"Restarting $program: "
     stop
     start
 }
 
+reload () {
+    restart 
+}
+
+force_reload () {
+    restart 
+}
+
 showstatus () {
     status -p ${pidfile} ${program}
-    RETVAL=$?
+}
+
+showstatus_q () {
+    showstatus >/dev/null 2>&1
 }
 
 case "$1" in
@@ -82,13 +83,26 @@ case "$1" in
     restart)
         restart
     ;;
+
+    reload)
+        reload
+    ;;
+
+    force-reload)
+        force_reload
+    ;;
     
     status)
         showstatus
     ;;
+
+    condrestart|try-restart)
+        showstatus_q || exit 0
+        restart
+    ;;
     
     *)
-        echo "Usage: $program {start|stop|restart,status}"
+        echo "Usage: $program {start|stop|restart|reload|force-reload|status|condrestart|try-restart}"
         exit 1
     ;;
 esac
