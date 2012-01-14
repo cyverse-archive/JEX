@@ -166,11 +166,13 @@
         dag-contents (gen-dag-contents working-dir output-dir dag)]
     ;;Create the working dir and the log directory.
     (log/info (str "Creating submission directories: " (ut/dirname dag-fpath)))
-    (.mkdirs (File. (ut/dirname dag-fpath)))
+    (if (not (.mkdirs (File. (ut/dirname dag-fpath))))
+      (log/warn (str "Failed to create directory: " (ut/dirname dag-fpath)))) 
     
     ;;Make the local log directory
     (log/info (str "Creating the local log directory: " (ut/path-join condor-log "logs")))
-    (.mkdirs (File. (ut/path-join condor-log "logs")))
+    (if (not (.mkdirs (File. (ut/path-join condor-log "logs"))))
+      (log/warn (str "Failed to create directory " (ut/path-join condor-log "logs"))))
     
     ;Write out the job submission files.
     (doseq [node-id    (keys (:nodes dag))]
