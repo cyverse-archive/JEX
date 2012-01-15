@@ -5,7 +5,8 @@
             [jex.dagify :as dagify]
             [clojure.tools.logging :as log]
             [clojure.java.shell :as sh]
-            [clojure-commons.osm :as osm]))
+            [clojure-commons.osm :as osm]
+            [clojure.data.json :as json]))
 
 (defn failure [reason]
   {:status "failure" :reason reason})
@@ -48,13 +49,16 @@
 
 (defn condor-submit-dag
   [dag-path]
-  (let [env {"PATH" (get props "jex.env.path")
-             "CONDOR_CONFIG" (get props "jex.env.condor-config")}]
-    (apply sh/sh :env env "condor_submit_dag" "-f" dag-path)))
+  (let [env {"PATH" (get @props "jex.env.path")
+             "CONDOR_CONFIG" (get @props "jex.env.condor-config")}
+        shellout (partial sh/sh :env env)]
+    (sh/with-sh-env 
+      env
+      (sh/sh "condor_submit_dag" "-f" dag-path))))
 
 (defn create-osm-record
   [osm-client]
-  (let [notif-url (get props "jex.osm.notification-url")
+  (let [notif-url (get @props "jex.osm.notification-url")
         doc-id (osm/save-object osm-client {})
         result (osm/add-callback osm-client doc-id "on_update" notif-url)]
     (log/warn result)
@@ -63,8 +67,14 @@
 (defn submit
   [submit-map]
   (let [[dag-path updated-map] (-> submit-map ix/transform dagify/dagify)
-        condor-ret (condor-submit-dag dag-path)]
-    (log/warn condor-ret)))
+        {cexit :exit cout :out cerr :err} (condor-submit-dag dag-path)]
+    (log/warn (str "Exit code of condor-submit-dag: " cexit))
+    (log/warn (str "condor-submit-dag stdout:"))
+    (log/warn cout)
+    (log/warn (str "condor-submit-dag stderr:"))
+    (log/warn cerr)
+    (log/warn "Output map:")
+    (log/warn (json/json-str (ox/transform updated-map)))))
 
 ;;(defn submit
 ;;  [submit-map]

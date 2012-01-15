@@ -97,7 +97,7 @@
   (let [wdir       working-dir
         odir       output-dir
         job-ids    (keys (:nodes dag))
-        def-lines  (into [] (for [job-id job-ids] (dag-job-def odir job-id))) 
+        def-lines  (into [] (for [job-id job-ids] (dag-job-def wdir job-id))) 
         edge-lines (map dag-edge (:edges dag))
         scr-lines  (map (partial dag-script-post wdir odir) job-ids)
         all-lines  (concat def-lines edge-lines scr-lines)]
