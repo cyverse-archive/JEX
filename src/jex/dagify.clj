@@ -187,6 +187,6 @@
     (log/info (str "Writing out dag file:"))
     (log/info dag-contents)
     (spit dag-fpath dag-contents)
-    
+
     ;return the dag filepath.
     [dag-fpath (assoc analysis-map :dag dag)]))

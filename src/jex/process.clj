@@ -66,34 +66,37 @@
 
 (defn submit
   [submit-map]
-  (let [[dag-path updated-map] (-> submit-map ix/transform dagify/dagify)
-        {cexit :exit cout :out cerr :err} (condor-submit-dag dag-path)]
+  (let [osm-url    (get @props "jex.osm.url")
+        osm-coll   (get @props "jex.osm.collection")
+        notif-url  (get @props "jex.osm.notification-url")
+        [dag-path updated-map] (-> submit-map ix/transform dagify/dagify)
+        {cexit :exit cout :out cerr :err} (condor-submit-dag dag-path)
+        dag-id     (last (re-find #"\d+ job\(s\) submitted to cluster (\d+)\." cout))
+        output-map (ox/transform (assoc updated-map :dag_id dag-id))
+        osm-client (osm/create osm-url osm-coll)
+        doc-id     (create-osm-record osm-client)]
+    
     (log/warn (str "Exit code of condor-submit-dag: " cexit))
-    (log/warn (str "condor-submit-dag stdout:"))
-    (log/warn cout)
-    (log/warn (str "condor-submit-dag stderr:"))
-    (log/warn cerr)
-    (log/warn "Output map:")
-    (log/warn (json/json-str (ox/transform updated-map)))))
-
-;;(defn submit
-;;  [submit-map]
-;;  (let [xform-result (-> submit-map ix/transform dagify/dagify)
-;;        dag-path     (first xform-result)
-;;        updated-map  (last xform-result)
-;;        outgoing-map (ox/transform updated-map)
-;;        condor-ret   (condor-submit-dag dag-path)
-;;        osm-client   (osm/create
-;;                       (get props "jex.osm.url")
-;;                       (get props "jex.osm.collection"))
-;;        doc-id       (create-osm-record osm-client)]
-;;    (log/warn "condor_submit_dag:")
-;;    (log/warn (:out condor-ret))
-;;    (log/warn (:err condor-ret))
-;;    (log/warn (str "Exit code: " (:exit condor-ret)))
-;;    
-;;    (if (not= (:exit condor-ret) 0)
-;;      (log/warn 
-;;        (osm/update-object osm-client doc-id (assoc outgoing-map :status "Failed")))
-;;      (log/warn 
-;;        (osm/update-object osm-client doc-id (assoc outgoing-map :status "Submitted"))))))
+    (log/info (str "condor-submit-dag stdout:"))
+    (log/info cout)
+    (log/info (str "condor-submit-dag stderr:"))
+    (log/info cerr)
+    (log/info "Output map:")
+    (log/info (json/json-str output-map))
+    (log/warn (str "Grabbed dag_id: " dag-id))
+    
+    ;Add the callback to the OSM doc.
+    (osm/add-callback osm-client doc-id "on_update" notif-url)
+    
+    ;Update the OSM doc with dag info, triggering notification.
+    (if (not= cexit 0)
+      (log/warn 
+        (osm/update-object 
+          osm-client 
+          doc-id
+          (assoc output-map :status "Failed"))) 
+      (log/warn 
+        (osm/update-object 
+          osm-client 
+          doc-id 
+          output-map)))))
