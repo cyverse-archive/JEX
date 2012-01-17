@@ -99,4 +99,6 @@
         (osm/update-object 
           osm-client 
           doc-id 
-          output-map)))))
+          output-map)))
+    
+    [cexit dag-id doc-id]))
