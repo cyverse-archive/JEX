@@ -9,10 +9,11 @@
 (def nfs-base (atom ""))
 (def irods-base (atom ""))
 
-(def replace-at (partial ut/replace-re #"@"))
+(def replacer #(.replaceAll (re-matcher %1 %3) %2))
+(def replace-at (partial replacer #"@"))
 (def at-underscore (partial replace-at "_"))
 (def at-space (partial replace-at ""))
-(def replace-space (partial ut/replace-re #"\s"))
+(def replace-space (partial replacer #"\s"))
 (def space-underscore (partial replace-space "_"))
 
 (def now-fmt "yyyy-MM-dd-HH-mm-ss.SSS")
