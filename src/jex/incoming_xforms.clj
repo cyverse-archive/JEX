@@ -264,6 +264,7 @@
         condor-log  (:condor-log-dir condor-map)]
     (assoc condor-map :imkdir-job
            {:id "imkdir"
+            :status "Submitted"
             :executable @filetool-path
             :environment (filetool-env)
             :stderr (ut/path-join working-dir "logs" "imkdir-stderr")
@@ -280,6 +281,7 @@
         coutput-jobs (:all-output-jobs condor-map)]
     (assoc condor-map :final-output-job
          {:id          "output-last"
+          :status      "Submitted"
           :executable  @filetool-path
           :environment (filetool-env)
           :stderr      (ut/path-join working-dir "logs" "output-last-stderr")
