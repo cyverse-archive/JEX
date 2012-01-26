@@ -45,7 +45,7 @@
   [request]
   (let [body (:body request)]
     (log/info "Received job request:")
-    (log/info body)
+    (log/info (json/json-str body))
     
     (if (jp/validate-submission body)
       (let [[exit-code dag-id doc-id] (jp/submit body)]
