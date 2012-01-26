@@ -88,8 +88,6 @@
     ;Add the callback to the OSM doc.
     (osm/add-callback osm-client doc-id "on_update" notif-url)
     
-    (log/debug output-map)
-    
     ;Update the OSM doc with dag info, triggering notification.
     (if (not= cexit 0)
       (log/warn 
