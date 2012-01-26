@@ -60,7 +60,7 @@
   [condor-map]
   (assoc condor-map :submission_date 
          (let [parsed-date  (parse-date now-fmt (:now_date condor-map))
-               submission-str (fmt-date submission-fmt parsed-date)]
+               submission-str (.getTime (date))]
            submission-str)))
 
 (defn output-dir
