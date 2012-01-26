@@ -85,9 +85,6 @@
     (log/info (json/json-str output-map))
     (log/warn (str "Grabbed dag_id: " dag-id))
     
-    ;Add the callback to the OSM doc.
-    (osm/add-callback osm-client doc-id "on_update" notif-url)
-    
     ;Update the OSM doc with dag info, triggering notification.
     (if (not= cexit 0)
       (log/warn 
@@ -99,4 +96,6 @@
         (osm/update-object 
           osm-client 
           doc-id 
-          output-map)))))
+          output-map)))
+    
+    [cexit dag-id doc-id]))

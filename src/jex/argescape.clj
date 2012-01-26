@@ -1,13 +1,12 @@
 (ns jex.argescape
-  (:require [clojure.string :as string])
-  (:use [clojure-commons.file-utils :only (replace-re)]))
+  (:require [clojure.string :as string]))
 
 (defn single? [arg] (if (re-find #"'" arg) true false))
 (defn double? [arg] (if (re-find #"\"" arg) true false))
 (defn space? [arg] (if (re-find #"\s" arg) true false))
 
-(defn double-single [arg] (replace-re #"'" "''" arg))
-(defn double-double [arg] (replace-re #"\"" "\"\"" arg))
+(defn double-single [arg] (.replaceAll (re-matcher #"'" arg) "''"))
+(defn double-double [arg] (.replaceAll (re-matcher #"\"" arg) "\"\""))
 (defn wrap-single [arg] (str "'" arg "'"))
 (defn wrap-double [arg] (str "\"" arg "\""))
 
