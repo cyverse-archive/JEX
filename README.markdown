@@ -1,13 +1,3 @@
-# jex
+# JEX
 
-FIXME: write description
-
-## Usage
-
-FIXME: write
-
-## License
-
-Copyright (C) 2010 FIXME
-
-Distributed under the Eclipse Public License, the same as Clojure.
+Backend service that accepts JSON and submits DAGs to Condor with condor_submit_dag.
