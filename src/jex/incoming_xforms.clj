@@ -9,6 +9,7 @@
 (def condor-log-path (atom ""))
 (def nfs-base (atom ""))
 (def irods-base (atom ""))
+(def filter-files (atom ""))
 
 (def replacer #(.replaceAll (re-matcher %1 %3) %2))
 (def replace-at (partial replacer #"@"))
@@ -29,7 +30,6 @@
   (. (java.text.SimpleDateFormat. format-str) format date-obj))
 
 (defn date [] (java.util.Date.))
-
 (defn filetool-env [] (str "PATH=" @icommands-path))
 
 (defn analysis-dirname
@@ -206,6 +206,10 @@
         fpath (:source jdef)]
     (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
 
+(defn- parse-filter-files
+  []
+  (into [] (filter #(not (string/blank? %)) (string/split @filter-files #","))))
+
 (defn exclude-arg
   [inputs outputs]
   (log/info "exclude-arg")
@@ -214,7 +218,7 @@
   (let [not-retain   (comp not :retain)
         input-paths  (map input-coll (filter not-retain inputs))
         output-paths (map output-coll (filter not-retain outputs))
-        all-paths    (flatten (conj input-paths output-paths))]
+        all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
     (if (> (count all-paths) 0) 
       (str "-exclude " (string/join "," all-paths)) 
       "")))

@@ -46,6 +46,7 @@
   {:generated_script 
    {:executable "/bin/bash"
     :args script-path
+    :status "Submitted"
     :output (script-output script-dir)
     :error (script-error script-dir)
     :log (script-log local-log-dir)}})
@@ -79,6 +80,7 @@
   [script-dir script-path local-log-dir]
   {:dummy_job
    {:executable "/bin/bash"
+    :status "Submitted"
     :args script-path
     :output (dummy-output script-dir)
     :error (dummy-error script-dir)
@@ -122,10 +124,10 @@
         uuid        (:uuid analysis-map)
         username    (:username analysis-map)
         scriptname  (str username "-" uuid ".sh")
-        scriptpath  (ut/path-join script-dir scriptname)
+        scriptpath  (ut/path-join script-dir "logs" scriptname)
         scriptsub   (ut/path-join script-dir "logs" "iplant.cmd")
         dummysub    (ut/path-join script-dir "logs" "dummy.cmd")
-        dummypath   (ut/path-join script-dir "dummy.sh")
+        dummypath   (ut/path-join script-dir "logs" "dummy.sh")
         dagpath     (dag-path script-dir)
         local-logs  (ut/path-join condor-log "logs")]
     
@@ -158,5 +160,7 @@
     ;Assoc the new dummy script and generated script.
     [dagpath (-> analysis-map
                 (dissoc :steps)
-                (assoc-in [:steps] (script-step script-dir scriptpath local-logs))
-                (assoc-in [:steps] (dummy-step script-dir dummypath local-logs)))]))
+                (assoc :status "Submitted")
+                (assoc :steps (merge 
+                                (script-step script-dir scriptpath local-logs) 
+                                (dummy-step script-dir dummypath local-logs))))]))

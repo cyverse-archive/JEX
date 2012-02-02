@@ -23,7 +23,8 @@
   (reset! ix/icommands-path (get @props "jex.app.icommands-path"))
   (reset! ix/condor-log-path (get @props "jex.app.condor-log-path"))
   (reset! ix/nfs-base (get @props "jex.app.nfs-base"))
-  (reset! ix/irods-base (get @props "jex.app.irods-base")))
+  (reset! ix/irods-base (get @props "jex.app.irods-base"))
+  (reset! ix/filter-files (get @props "jex.app.filter-files")))
 
 (def validators
   [#(string? (:uuid %))

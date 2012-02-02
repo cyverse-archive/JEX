@@ -4,7 +4,7 @@
 
 (defn filter-map
   [outgoing-map]
-  (let [jobs (:nodes (:dag outgoing-map))
+  (let [jobs (:steps outgoing-map)
         username (:username outgoing-map)]
     (-> outgoing-map
     (assoc :jobs jobs)
