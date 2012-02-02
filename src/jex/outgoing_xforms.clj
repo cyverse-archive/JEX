@@ -19,8 +19,9 @@
 
 (defn filter-steps
   [outgoing-map]
-  (assoc outgoing-map :jobs (apply merge (for [[jname job] (seq (:jobs outgoing-map))]
-                                           {jname (dissoc job :input-jobs :output-jobs)}))))
+  (assoc outgoing-map 
+         :jobs (apply merge (for [[jname job] (seq (:jobs outgoing-map))]
+                              {jname (dissoc job :input-jobs :output-jobs)}))))
 
 (defn transform
   [outgoing-map]

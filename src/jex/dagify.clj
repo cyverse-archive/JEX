@@ -9,19 +9,22 @@
   (ut/path-join script-dir "logs" "iplantDag.dag"))
 
 (defn dag-contents
-  [script-sub-path dummy-sub-path dummy-post-path]
+  [script-sub-path dummy-sub-path]
   (str
     "JOB iplant_script " script-sub-path "\n"
     "JOB dummy_script " dummy-sub-path "\n"
     "PARENT iplant_script CHILD dummy_script\n"
-    "SCRIPT POST iplant_script /usr/local/bin/handle_error.sh $RETURN\n"
-    "SCRIPT POST dummy_script " dummy-post-path "$RETURN\n"))
+    "SCRIPT POST iplant_script /usr/local/bin/handle_error.sh $RETURN\n"))
+
+(defn script-output [script-dir] (ut/path-join script-dir "logs" "script-output.log"))
+(defn script-error [script-dir] (ut/path-join script-dir "logs" "script-error.log"))
+(defn script-log [local-log-dir] (ut/path-join local-log-dir "script-condor-log"))
 
 (defn script-submission
   [username uuid script-dir script-path local-log-dir]
-  (let [output (ut/path-join script-dir "logs" "script-output.log")
-        error  (ut/path-join script-dir "logs" "script-error.log")
-        log    (ut/path-join local-log-dir "script-condor-log")]
+  (let [output (script-output script-dir)
+        error  (script-error script-dir)
+        log    (script-log local-log-dir)]
     (str
       "universe = vanilla\n"
       "executable = /bin/bash\n" 
@@ -30,6 +33,7 @@
       "error = " error "\n"
       "log = " log "\n"
       "+IpcUuid = \"" uuid "\"\n"
+      "+IpcJobId = \"generated_script\"\n"
       "+IpcUsername = \"" username "\"\n"
       "transfer_executables = False\n"
       "transfer_output_files = \n"
@@ -37,11 +41,24 @@
       "notification = NEVER\n"
       "queue\n")))
 
+(defn script-step
+  [script-dir script-path local-log-dir]
+  {:generated_script 
+   {:executable "/bin/bash"
+    :args script-path
+    :output (script-output script-dir)
+    :error (script-error script-dir)
+    :log (script-log local-log-dir)}})
+
+(defn dummy-output [script-dir] (ut/path-join script-dir "logs" "dummy-output.log"))
+(defn dummy-error [script-dir] (ut/path-join script-dir "logs" "dummy-error.log"))
+(defn dummy-log [local-log-dir] (ut/path-join local-log-dir "dummy.log"))
+
 (defn dummy-submission
   [username uuid script-dir script-path local-log-dir]
-  (let [output (ut/path-join script-path "logs" "dummy-output.log")
-        error  (ut/path-join script-path "logs" "dummy-error.log")
-        log    (ut/path-join local-log-dir "dummy.log")]
+  (let [output (dummy-output script-dir)
+        error  (dummy-error script-dir)
+        log    (dummy-log local-log-dir)]
     (str
       "universe = vanilla\n"
       "executable = /bin/bash\n"
@@ -50,6 +67,7 @@
       "error = " error "\n"
       "log = " log "\n"
       "+IpcUuid = \"" uuid "\"\n"
+      "+IpcJobId = \"dummy_job\"\n"
       "+IpcUsername = \"" username "\"\n"
       "transfer_executables = False\n"
       "transfer_output_files = \n"
@@ -57,13 +75,18 @@
       "notification = NEVER\n"
       "queue\n")))
 
+(defn dummy-step
+  [script-dir script-path local-log-dir]
+  {:dummy_job
+   {:executable "/bin/bash"
+    :args script-path
+    :output (dummy-output script-dir)
+    :error (dummy-error script-dir)
+    :log (dummy-log local-log-dir)}})
+
 (defn dummy-script
   []
   "#!/bin/bash\n/bin/echo \"This is a dummy job to fill out the DAG.\"\n")
-
-(defn dummy-script-post
-  []
-  "#!/bin/bash\nexit 0\n")
 
 (defn jobs-in-order
   [analysis-map]
@@ -85,7 +108,8 @@
 (defn script
   [analysis-map]
   (str 
-    "#!/bin/bash\n" 
+    "#!/bin/bash\n"
+    "mkdir logs\n"
     (join "\n" (map script-line (jobs-in-order analysis-map))) 
     "\n"))
 
@@ -102,7 +126,6 @@
         scriptsub   (ut/path-join script-dir "logs" "iplant.cmd")
         dummysub    (ut/path-join script-dir "logs" "dummy.cmd")
         dummypath   (ut/path-join script-dir "dummy.sh")
-        dummypost   (ut/path-join script-dir "dummy-post.sh")
         dagpath     (dag-path script-dir)
         local-logs  (ut/path-join condor-log "logs")]
     
@@ -128,10 +151,12 @@
     ;Write out the dummy submission
     (spit dummysub (dummy-submission username uuid script-dir dummypath local-logs))
     
-    ;Write out the dummy post
-    (spit dummypost (dummy-script-post))
-    
     ;Write out the dag
-    (spit dag-path (dag-contents scriptsub dummysub dummypost))
+    (spit dagpath (dag-contents scriptsub dummysub))
     
-    [dag-path analysis-map]))
+    ;Dissoc all of the other steps, they're not needed any more. 
+    ;Assoc the new dummy script and generated script.
+    [dagpath (-> analysis-map
+                (dissoc :steps)
+                (assoc-in [:steps] (script-step script-dir scriptpath local-logs))
+                (assoc-in [:steps] (dummy-step script-dir dummypath local-logs)))]))

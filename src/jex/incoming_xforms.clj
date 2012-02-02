@@ -76,7 +76,7 @@
 
 (defn- escape-params
   [params]
-  (ae/condorize 
+  (string/join " "
     (flatten 
       (map 
         (fn [p] [(:name p) (:value p)]) 
@@ -84,44 +84,42 @@
 
 (defn steps
   [condor-map]
-  (log/info (str "COUNT STEPS BEFORE: " (count (:steps condor-map))))
-  (let [new-map (assoc condor-map 
-                       :steps
-                       (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
-                         (for [[step-idx step] stepv]
-                           (let [id          (str "condor-" step-idx)
-                                 working-dir (:working_dir condor-map)
-                                 condor-log  (:condor-log-dir condor-map)
-                                 def-stdout  (str "condor-stdout-" step-idx)
-                                 def-stderr  (str "condor-stderr-" step-idx)
-                                 def-log     (str "condor-log-" step-idx)
-                                 exec        (ut/path-join 
-                                               (get-in step [:component :location]) 
-                                               (get-in step [:component :name]))
-                                 args        (escape-params (param-maps (get-in step [:config :params] )))
-                                 stdin       (if (contains? :stdin step)
-                                               (ut/path-join working-dir (:stdin step))
-                                               nil)
-                                 stdout      (if (contains? :stdout step)
-                                               (ut/path-join working-dir (:stdout step))
-                                               (ut/path-join working-dir "logs" def-stdout)) 
-                                 stderr      (if (contains? :stderr step)
-                                               (ut/path-join working-dir (:stderr step))
-                                               (ut/path-join working-dir "logs" def-stderr))
-                                 log-file    (if (contains? :log-file step)
-                                               (ut/path-join condor-log (:log-file step))
-                                               (ut/path-join condor-log "logs" def-log))]
-                             (assoc step 
-                                    :id id
-                                    :type "condor"
-                                    :submission_date (:submission_date condor-map)
-                                    :status "Submitted"
-                                    :executable exec
-                                    :arguments args
-                                    :stdout stdout
-                                    :stderr stderr
-                                    :log-file log-file)))))]
-    (log/info (str "COUNT STEPS AFTER: " (count (:steps new-map))))
+  (let [new-map (assoc 
+                  condor-map 
+                  :steps
+                  (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
+                    (for [[step-idx step] stepv]
+                      (let [id          (str "condor-" step-idx)
+                            condor-log  (:condor-log-dir condor-map)
+                            def-stdout  (str "condor-stdout-" step-idx)
+                            def-stderr  (str "condor-stderr-" step-idx)
+                            def-log     (str "condor-log-" step-idx)
+                            exec        (ut/path-join 
+                                          (get-in step [:component :location]) 
+                                          (get-in step [:component :name]))
+                            args        (escape-params (param-maps (get-in step [:config :params] )))
+                            stdin       (if (contains? :stdin step)
+                                          (:stdin step)
+                                          nil)
+                            stdout      (if (contains? :stdout step)
+                                          (:stdout step)
+                                          (str "logs/" def-stdout)) 
+                            stderr      (if (contains? :stderr step)
+                                          (:stderr step)
+                                          (str "logs/" def-stderr))
+                            log-file    (if (contains? :log-file step)
+                                          (ut/path-join condor-log (:log-file step))
+                                          (ut/path-join condor-log "logs" def-log))]
+                        (assoc step 
+                               :id id
+                               :type "condor"
+                               :submission_date (:submission_date condor-map)
+                               :status "Submitted"
+                               :executable exec
+                               :arguments args
+                               :stdout stdout
+                               :stderr stderr
+                               :log-file log-file)))))]
     new-map))
 
 (defn input-jobs
@@ -131,8 +129,7 @@
          (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
            (for [[step-idx step] stepv]
              (assoc step :input-jobs 
-                    (let [working-dir (:working_dir condor-map)
-                          condor-log  (:condor-log-dir condor-map)
+                    (let [condor-log  (:condor-log-dir condor-map)
                           config      (:config step)
                           inputs      (:input config)]
                       (let [inputv (map vector (iterate inc 0) inputs)] 
@@ -148,9 +145,9 @@
                              :source          source
                              :executable      @filetool-path
                              :environment     (filetool-env)
-                             :arguments       (ae/condorize ["-get" "-source" source])
-                             :stdout          (ut/path-join working-dir "logs" (str ij-id "-stdout"))
-                             :stderr          (ut/path-join working-dir "logs" (str ij-id "-stderr"))
+                             :arguments       (str "-get -source " source)
+                             :stdout          (str "logs/" (str ij-id "-stdout"))
+                             :stderr          (str "logs/" (str ij-id "-stderr"))
                              :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))})))))))))
 
 (defn output-jobs
@@ -176,10 +173,8 @@
                           outputs-len (count outputs)]
                       (let [outputv (map vector (iterate inc 0) outputs)] 
                         (for [[output-idx output] outputv]
-                          (let [working-dir (:working_dir condor-map)
-                                source-base (:name output)]
-                            (let [source (ut/path-join working-dir source-base)
-                                  dest   (:output_dir condor-map)]
+                          (let [source      (:name output)]
+                            (let [dest (:output_dir condor-map)]
                               {:id              (str "condor-" step-idx "-output-" output-idx)
                                :type            "condor"
                                :status          "Submitted"
@@ -187,7 +182,7 @@
                                :retain          (:retain output)
                                :multi           (:multiplicity output)
                                :executable      @filetool-path
-                               :arguments       (ae/condorize ["-source" source "-destination" dest])
+                               :arguments       (str "-source " source " -destination " dest)
                                :source          source
                                :dest            dest}))))))))))
 
@@ -201,61 +196,55 @@
   (assoc condor-map :all-output-jobs
          (apply concat (map :output-jobs (:steps condor-map)))))
 
-(defn- input-coll [working-dir jdef]
+(defn- input-coll [jdef]
   (let [multi (:multi jdef)
-        fpath (ut/path-join working-dir (ut/basename (:source jdef)))]
+        fpath (ut/basename (:source jdef))]
     (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
 
-(defn- output-coll [working-dir jdef]
+(defn- output-coll [jdef]
   (let [multi (:multi jdef)
         fpath (:source jdef)]
     (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
 
 (defn exclude-arg
-  [working-dir inputs outputs]
+  [inputs outputs]
   (log/info "exclude-arg")
   (log/info (str "COUNT INPUTS: " (count inputs)))
   (log/info (str "COUNT OUTPUTS: " (count outputs)))
-  (let [input-fixer  (partial input-coll working-dir)
-        output-fixer (partial output-coll working-dir)
-        not-retain   (comp not :retain)
-        input-paths  (map input-fixer (filter not-retain inputs))
-        output-paths (map output-fixer (filter not-retain outputs))
+  (let [not-retain   (comp not :retain)
+        input-paths  (map input-coll (filter not-retain inputs))
+        output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten (conj input-paths output-paths))]
     (if (> (count all-paths) 0) 
-      (list "-exclude" (string/join "," all-paths)) 
-      [])))
+      (str "-exclude " (string/join "," all-paths)) 
+      "")))
 
 (defn imkdir-job-map
-  [working-dir output-dir condor-log]
+  [output-dir condor-log]
   {:id "imkdir"
    :status "Submitted"
    :executable @filetool-path
    :environment (filetool-env)
-   :stderr (ut/path-join working-dir "logs" "imkdir-stderr")
-   :stdout (ut/path-join working-dir "logs" "imkdir-stdout")
+   :stderr "logs/imkdir-stderr"
+   :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
-   :arguments (ae/condorize ["-mkdir" "-destination" output-dir])})
+   :arguments (str "-mkdir -destination " output-dir)})
 
 (defn shotgun-job-map
-  [working-dir output-dir condor-log cinput-jobs coutput-jobs]
+  [output-dir condor-log cinput-jobs coutput-jobs]
   (log/info "shotgun-job-map")
   {:id          "output-last"
    :status      "Submitted"
    :executable  @filetool-path
    :environment (filetool-env)
-   :stderr      (ut/path-join working-dir "logs" "output-last-stderr")
-   :stdout      (ut/path-join working-dir "logs" "output-last-stdout")
+   :stderr      "logs/output-last-stderr"
+   :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
-   :arguments   (ae/condorize  
-                  (flatten ["-source"      working-dir 
-                            "-destination" output-dir
-                            (exclude-arg working-dir cinput-jobs coutput-jobs)]))})
+   :arguments   (str "-destination " output-dir " " (exclude-arg cinput-jobs coutput-jobs))})
 
 (defn extra-jobs
   [condor-map]
-  (let [working-dir  (:working_dir condor-map)
-        output-dir   (:output_dir condor-map)
+  (let [output-dir   (:output_dir condor-map)
         condor-log   (:condor-log-dir condor-map)
         cinput-jobs  (:all-input-jobs condor-map)
         coutput-jobs (:all-output-jobs condor-map)]
@@ -263,10 +252,10 @@
     (log/info (str "COUNT ALL-OUTPUTS: " (count coutput-jobs)))
     (assoc condor-map 
            :final-output-job
-           (shotgun-job-map working-dir output-dir condor-log cinput-jobs coutput-jobs)
+           (shotgun-job-map output-dir condor-log cinput-jobs coutput-jobs)
            
            :imkdir-job
-           (imkdir-job-map working-dir output-dir condor-log))))
+           (imkdir-job-map output-dir condor-log))))
 
 (defn rm-step-component
   [condor-map]
