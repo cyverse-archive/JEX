@@ -52,15 +52,40 @@
          :irods_base @irods-base
          :submission_date (.getTime (date))))
 
+(defn output-directory
+  [condor-map]
+  (let [output-dir    (:output_dir condor-map)
+        create-subdir (:create_output_subdir condor-map)
+        irods-base    (:irods_base condor-map)
+        username      (:username condor-map)
+        analysis-dir  (analysis-dirname (:name condor-map) (:now_date condor-map))]
+    (cond
+      (or (nil? output-dir) (nil? create-subdir))
+      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      
+      (and (string/blank? output-dir) create-subdir)
+      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      
+      (and (string/blank? output-dir) (false? create-subdir))
+      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      
+      (and (not (string/blank? output-dir)) create-subdir)
+      (ut/add-trailing-slash (ut/path-join output-dir analysis-dir))
+      
+      (and (not (string/blank? output-dir)) (false? create-subdir))
+      (ut/add-trailing-slash output-dir)
+      
+      :else
+      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir)))))
+
 (defn context-dirs
   [condor-map]
   (let [username     (:username condor-map)
-        irods-base   (:irods_base condor-map)
         nfs-base     (:nfs_base condor-map)
         analysis-dir (analysis-dirname (:name condor-map) (:now_date condor-map))
         log-dir-path (ut/path-join @condor-log-path username analysis-dir)
         log-dir      (ut/add-trailing-slash log-dir-path)
-        output-dir   (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+        output-dir   (output-directory condor-map)
         working-dir  (ut/add-trailing-slash (ut/path-join nfs-base username analysis-dir))]
     (assoc condor-map 
            :output_dir output-dir
