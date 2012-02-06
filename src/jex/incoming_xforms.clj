@@ -29,8 +29,11 @@
   [format-str date-obj]
   (. (java.text.SimpleDateFormat. format-str) format date-obj))
 
-(defn date [] (java.util.Date.))
-(defn filetool-env [] (str "PATH=" @icommands-path))
+(defn date [] 
+  (java.util.Date.))
+
+(defn filetool-env [username] 
+  (str "PATH=" @icommands-path " clientUserName=" username))
 
 (defn analysis-dirname
   [analysis-name date-str]
@@ -169,7 +172,7 @@
                              :multi           (:multiplicity input)
                              :source          source
                              :executable      @filetool-path
-                             :environment     (filetool-env)
+                             :environment     (filetool-env (:username condor-map))
                              :arguments       (str "-get -source " source)
                              :stdout          (str "logs/" (str ij-id "-stdout"))
                              :stderr          (str "logs/" (str ij-id "-stderr"))
@@ -249,23 +252,23 @@
       "")))
 
 (defn imkdir-job-map
-  [output-dir condor-log]
+  [output-dir condor-log username]
   {:id "imkdir"
    :status "Submitted"
    :executable @filetool-path
-   :environment (filetool-env)
+   :environment (filetool-env username)
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
    :arguments (str "-mkdir -destination " output-dir)})
 
 (defn shotgun-job-map
-  [output-dir condor-log cinput-jobs coutput-jobs]
+  [output-dir condor-log cinput-jobs coutput-jobs username]
   (log/info "shotgun-job-map")
   {:id          "output-last"
    :status      "Submitted"
    :executable  @filetool-path
-   :environment (filetool-env)
+   :environment (filetool-env username)
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
@@ -281,10 +284,10 @@
     (log/info (str "COUNT ALL-OUTPUTS: " (count coutput-jobs)))
     (assoc condor-map 
            :final-output-job
-           (shotgun-job-map output-dir condor-log cinput-jobs coutput-jobs)
+           (shotgun-job-map output-dir condor-log cinput-jobs coutput-jobs (:username condor-map))
            
            :imkdir-job
-           (imkdir-job-map output-dir condor-log))))
+           (imkdir-job-map output-dir condor-log (:username condor-map)))))
 
 (defn rm-step-component
   [condor-map]
