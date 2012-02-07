@@ -9,12 +9,11 @@
   (ut/path-join script-dir "logs" "iplantDag.dag"))
 
 (defn dag-contents
-  [script-sub-path dummy-sub-path]
+  [script-sub-path dummy-sub-path output-dir]
   (str
     "JOB iplant_script " script-sub-path "\n"
     "JOB dummy_script " dummy-sub-path "\n"
-    "PARENT iplant_script CHILD dummy_script\n"
-    "SCRIPT POST iplant_script /usr/local/bin/handle_error.sh $RETURN\n"))
+    "PARENT iplant_script CHILD dummy_script\n"))
 
 (defn script-output [script-dir] (ut/path-join script-dir "logs" "script-output.log"))
 (defn script-error [script-dir] (ut/path-join script-dir "logs" "script-error.log"))
@@ -105,15 +104,19 @@
         args   (:arguments job-def)
         stderr (:stderr job-def)
         stdout (:stdout job-def)]
-    (str env " " exec " " args " 1>" stdout " 2>" stderr)))
+    (str env " " exec " " args " 1>" stdout " 2>" stderr "\n"
+         "if [ ! \"$?\" -eq \"0\" ]; then\n"
+             "\tEXITSTATUS=1\n"
+         "fi\n")))
 
 (defn script
   [analysis-map]
   (str 
     "#!/bin/bash\n"
     "mkdir logs\n"
+    "EXITSTATUS=0\n"
     (join "\n" (map script-line (jobs-in-order analysis-map))) 
-    "\n"))
+    "exit $EXITSTATUS\n"))
 
 (defn dagify
   [analysis-map]
@@ -154,7 +157,7 @@
     (spit dummysub (dummy-submission username uuid script-dir dummypath local-logs))
     
     ;Write out the dag
-    (spit dagpath (dag-contents scriptsub dummysub))
+    (spit dagpath (dag-contents scriptsub dummysub output-dir))
     
     ;Dissoc all of the other steps, they're not needed any more. 
     ;Assoc the new dummy script and generated script.
