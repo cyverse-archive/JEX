@@ -43,7 +43,6 @@ install -d $RPM_BUILD_ROOT/etc/jex/
 install jex $RPM_BUILD_ROOT/etc/init.d/
 install jex-1.0.0-SNAPSHOT-standalone.jar $RPM_BUILD_ROOT/usr/local/lib/jex/
 install conf/log4j.properties $RPM_BUILD_ROOT/etc/jex/
-install conf/jex.properties $RPM_BUILD_ROOT/etc/jex/
 
 %post
 /sbin/chkconfig --add jex
@@ -62,6 +61,7 @@ fi
 %clean
 lein clean
 rm -r lib/*
+rm -r $RPM_BUILD_ROOT
 
 %files
 %attr(-,condor,condor) /usr/local/lib/jex/
