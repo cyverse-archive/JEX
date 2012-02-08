@@ -71,7 +71,7 @@
 
 (defn -main
   [& args]
-  (def zkprops (parse-properties "jex.properties"))
+  (def zkprops (parse-properties "zkhosts.properties"))
   (def zkurl (get zkprops "zookeeper"))
   
   (cl/with-zk

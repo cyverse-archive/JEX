@@ -13,7 +13,7 @@ RUNUSER=condor
 program=jex
 jarfile=jex-1.0.0-SNAPSHOT-standalone.jar
 jar=/usr/local/lib/${program}/${jarfile}
-conf=/etc/${program}
+conf=/etc/iplant-services/
 mainclass=${program}.core
 
 ################################################################################
