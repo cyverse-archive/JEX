@@ -71,7 +71,6 @@ rm -r $RPM_BUILD_ROOT
 %attr(-,condor,condor) /etc/jex/
 
 %config %attr(0644,condor,condor) /etc/jex/log4j.properties
-%config %attr(0644,condor,condor) /etc/jex/jex.properties
 
 %attr(0755,root,root) /etc/init.d/jex
 %attr(0644,condor,condor) /usr/local/lib/jex/jex-1.0.0-SNAPSHOT-standalone.jar
