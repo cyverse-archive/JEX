@@ -4,10 +4,8 @@
 
 (defn filter-map
   [outgoing-map]
-  (let [jobs (:steps outgoing-map)
-        username (:username outgoing-map)]
+  (let [username (:username outgoing-map)]
     (-> outgoing-map
-    (assoc :jobs jobs)
     (assoc :status "Submitted")
     (assoc :user username)
     (assoc :output_manifest [])
@@ -17,15 +15,8 @@
     (dissoc :steps)
     (dissoc :all-input-jobs :all-output-jobs :imkdir-job))))
 
-(defn filter-steps
-  [outgoing-map]
-  (assoc outgoing-map 
-         :jobs (apply merge (for [[jname job] (seq (:jobs outgoing-map))]
-                              {jname (dissoc job :input-jobs :output-jobs)}))))
-
 (defn transform
   [outgoing-map]
   (-> outgoing-map
-    filter-map
-    filter-steps))
+    filter-map))
 

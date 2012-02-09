@@ -48,14 +48,14 @@
     (failure "Bad JSON")
     (success)))
 
-(defn condor-submit-dag
-  [dag-path]
+(defn condor-submit
+  [sub-path]
   (let [env {"PATH" (get @props "jex.env.path")
              "CONDOR_CONFIG" (get @props "jex.env.condor-config")}
         shellout (partial sh/sh :env env)]
     (sh/with-sh-env 
       env
-      (sh/sh "condor_submit_dag" "-f" dag-path))))
+      (sh/sh "condor_submit" sub-path))))
 
 (defn create-osm-record
   [osm-client]
@@ -70,21 +70,21 @@
   (let [osm-url    (get @props "jex.osm.url")
         osm-coll   (get @props "jex.osm.collection")
         notif-url  (get @props "jex.osm.notification-url")
-        [dag-path updated-map] (-> submit-map ix/transform dagify/dagify)
-        {cexit :exit cout :out cerr :err} (condor-submit-dag dag-path)
-        dag-id     (last (re-find #"\d+ job\(s\) submitted to cluster (\d+)\." cout))
-        output-map (ox/transform (assoc updated-map :dag_id dag-id))
+        [sub-path updated-map] (-> submit-map ix/transform dagify/dagify)
+        {cexit :exit cout :out cerr :err} (condor-submit sub-path)
+        sub-id     (last (re-find #"\d+ job\(s\) submitted to cluster (\d+)\." cout))
+        output-map (ox/transform (assoc updated-map :sub_id sub-id))
         osm-client (osm/create osm-url osm-coll)
         doc-id     (create-osm-record osm-client)]
     
-    (log/warn (str "Exit code of condor-submit-dag: " cexit))
+    (log/warn (str "Exit code of condor-submit: " cexit))
     (log/info (str "condor-submit-dag stdout:"))
     (log/info cout)
     (log/info (str "condor-submit-dag stderr:"))
     (log/info cerr)
     (log/info "Output map:")
     (log/info (json/json-str output-map))
-    (log/warn (str "Grabbed dag_id: " dag-id))
+    (log/warn (str "Grabbed dag_id: " sub-id))
     
     ;Update the OSM doc with dag info, triggering notification.
     (if (not= cexit 0)
@@ -99,4 +99,4 @@
           doc-id 
           output-map)))
     
-    [cexit dag-id doc-id]))
+    [cexit sub-id doc-id]))

@@ -4,17 +4,6 @@
         [clojure.tools.logging :as log])
   (:import [java.io File]))
 
-(defn dag-path
-  [script-dir]
-  (ut/path-join script-dir "logs" "iplantDag.dag"))
-
-(defn dag-contents
-  [script-sub-path dummy-sub-path output-dir]
-  (str
-    "JOB iplant_script " script-sub-path "\n"
-    "JOB dummy_script " dummy-sub-path "\n"
-    "PARENT iplant_script CHILD dummy_script\n"))
-
 (defn script-output [script-dir] (ut/path-join script-dir "logs" "script-output.log"))
 (defn script-error [script-dir] (ut/path-join script-dir "logs" "script-error.log"))
 (defn script-log [local-log-dir] (ut/path-join local-log-dir "script-condor-log"))
@@ -43,51 +32,7 @@
 (defn script-step
   [script-dir script-path local-log-dir]
   {:generated_script 
-   {:executable "/bin/bash"
-    :args script-path
-    :status "Submitted"
-    :output (script-output script-dir)
-    :error (script-error script-dir)
-    :log (script-log local-log-dir)}})
-
-(defn dummy-output [script-dir] (ut/path-join script-dir "logs" "dummy-output.log"))
-(defn dummy-error [script-dir] (ut/path-join script-dir "logs" "dummy-error.log"))
-(defn dummy-log [local-log-dir] (ut/path-join local-log-dir "dummy.log"))
-
-(defn dummy-submission
-  [username uuid script-dir script-path local-log-dir]
-  (let [output (dummy-output script-dir)
-        error  (dummy-error script-dir)
-        log    (dummy-log local-log-dir)]
-    (str
-      "universe = vanilla\n"
-      "executable = /bin/bash\n"
-      "arguments = \"" script-path "\"\n"
-      "output = " output "\n"
-      "error = " error "\n"
-      "log = " log "\n"
-      "+IpcUuid = \"" uuid "\"\n"
-      "+IpcJobId = \"dummy_job\"\n"
-      "+IpcUsername = \"" username "\"\n"
-      "transfer_executables = False\n"
-      "transfer_output_files = \n"
-      "when_to_transfer_output = ON_EXIT\n"
-      "notification = NEVER\n"
-      "queue\n")))
-
-(defn dummy-step
-  [script-dir script-path local-log-dir]
-  {:dummy_job
-   {:executable "/bin/bash"
-    :status "Submitted"
-    :args script-path
-    :output (dummy-output script-dir)
-    :error (dummy-error script-dir)
-    :log (dummy-log local-log-dir)}})
-
-(defn dummy-script
-  []
-  "#!/bin/bash\n/bin/echo \"This is a dummy job to fill out the DAG.\"\n")
+   {}})
 
 (defn jobs-in-order
   [analysis-map]
@@ -129,9 +74,6 @@
         scriptname  (str username "-" uuid ".sh")
         scriptpath  (ut/path-join script-dir "logs" scriptname)
         scriptsub   (ut/path-join script-dir "logs" "iplant.cmd")
-        dummysub    (ut/path-join script-dir "logs" "dummy.cmd")
-        dummypath   (ut/path-join script-dir "logs" "dummy.sh")
-        dagpath     (dag-path script-dir)
         local-logs  (ut/path-join condor-log "logs")]
     
     ;Create the directory the script and log files will go into.
@@ -150,20 +92,13 @@
     ;Write out the script submission
     (spit scriptsub (script-submission username uuid script-dir scriptpath local-logs))
     
-    ;Write out the dummy script
-    (spit dummypath (dummy-script))
-    
-    ;Write out the dummy submission
-    (spit dummysub (dummy-submission username uuid script-dir dummypath local-logs))
-    
-    ;Write out the dag
-    (spit dagpath (dag-contents scriptsub dummysub output-dir))
-    
     ;Dissoc all of the other steps, they're not needed any more. 
     ;Assoc the new dummy script and generated script.
-    [dagpath (-> analysis-map
-                (dissoc :steps)
-                (assoc :status "Submitted")
-                (assoc :steps (merge 
-                                (script-step script-dir scriptpath local-logs) 
-                                (dummy-step script-dir dummypath local-logs))))]))
+    [scriptsub (-> analysis-map
+                  (dissoc :steps)
+                  (assoc :executable "/bin/bash"
+                         :args scriptpath
+                         :status "Submitted"
+                         :output (script-output script-dir)
+                         :error (script-error script-dir)
+                         :log (script-log local-logs)))]))
