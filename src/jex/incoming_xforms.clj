@@ -49,7 +49,6 @@
   [condor-map]
   (assoc condor-map 
          :name  (-> (:name condor-map) at-underscore space-underscore)
-         :email (:username condor-map)
          :username (-> (:username condor-map) at-underscore space-underscore)
          :nfs_base @nfs-base
          :irods_base @irods-base
