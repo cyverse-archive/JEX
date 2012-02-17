@@ -45,10 +45,14 @@
   ([condor-map date-func]
     (assoc condor-map :now_date (fmt-date now-fmt (date-func)))))
 
+(defn pathize
+  "Makes a string safe for inclusion in a path."
+  [p]
+  (-> p at-underscore space-underscore))
+
 (defn analysis-attrs
   [condor-map]
-  (assoc condor-map 
-         :name  (-> (:name condor-map) at-underscore space-underscore)
+  (assoc condor-map
          :username (-> (:username condor-map) at-underscore space-underscore)
          :nfs_base @nfs-base
          :irods_base @irods-base
@@ -60,7 +64,7 @@
         create-subdir (:create_output_subdir condor-map)
         irods-base    (:irods_base condor-map)
         username      (:username condor-map)
-        analysis-dir  (analysis-dirname (:name condor-map) (:now_date condor-map))]
+        analysis-dir  (analysis-dirname (pathize (:name condor-map)) (:now_date condor-map))]
     (cond
       (or (nil? output-dir) (nil? create-subdir))
       (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
@@ -84,7 +88,7 @@
   [condor-map]
   (let [username     (:username condor-map)
         nfs-base     (:nfs_base condor-map)
-        analysis-dir (analysis-dirname (:name condor-map) (:now_date condor-map))
+        analysis-dir (analysis-dirname (pathize (:name condor-map)) (:now_date condor-map))
         log-dir-path (ut/path-join @condor-log-path username analysis-dir)
         log-dir      (ut/add-trailing-slash log-dir-path)
         output-dir   (output-directory condor-map)
