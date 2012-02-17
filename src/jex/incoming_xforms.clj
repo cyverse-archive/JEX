@@ -53,6 +53,7 @@
 (defn analysis-attrs
   [condor-map]
   (assoc condor-map
+         :type (or (:type condor-map) "analysis")
          :username (-> (:username condor-map) at-underscore space-underscore)
          :nfs_base @nfs-base
          :irods_base @irods-base
