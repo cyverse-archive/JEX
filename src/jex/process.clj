@@ -16,6 +16,9 @@
 
 (def props (atom nil))
 
+;Converts a string to a boolean.
+(def boolize #(boolean (Boolean. %)))
+
 (defn init
   [app-props]
   (reset! props app-props)
@@ -24,7 +27,8 @@
   (reset! ix/condor-log-path (get @props "jex.app.condor-log-path"))
   (reset! ix/nfs-base (get @props "jex.app.nfs-base"))
   (reset! ix/irods-base (get @props "jex.app.irods-base"))
-  (reset! ix/filter-files (get @props "jex.app.filter-files")))
+  (reset! ix/filter-files (get @props "jex.app.filter-files"))
+  (reset! ix/run-on-nfs (or (boolize (get @props "jex.app.run-on-nfs")) false)))
 
 (def validators
   [#(string? (:uuid %))

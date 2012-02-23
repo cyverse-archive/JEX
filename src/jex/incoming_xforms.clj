@@ -10,6 +10,7 @@
 (def nfs-base (atom ""))
 (def irods-base (atom ""))
 (def filter-files (atom ""))
+(def run-on-nfs (atom false))
 
 (def replacer #(.replaceAll (re-matcher %1 %3) %2))
 (def replace-at (partial replacer #"@"))
@@ -47,9 +48,9 @@
 
 (defn analysis-attrs
   [condor-map]
-  (assoc condor-map 
-         :name  (-> (:name condor-map) at-underscore space-underscore)
-         :email (:username condor-map)
+  (assoc condor-map
+         :run-on-nfs @run-on-nfs
+         :type (or (:type condor-map) "analysis")
          :username (-> (:username condor-map) at-underscore space-underscore)
          :nfs_base @nfs-base
          :irods_base @irods-base
@@ -61,8 +62,8 @@
         create-subdir (:create_output_subdir condor-map)
         irods-base    (:irods_base condor-map)
         username      (:username condor-map)
-        analysis-dir  (analysis-dirname (:name condor-map) (:now_date condor-map))]
-    (cond
+        analysis-dir  (analysis-dirname (pathize (:name condor-map)) (:now_date condor-map))]
+    (cond      
       (or (nil? output-dir) (nil? create-subdir))
       (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
       

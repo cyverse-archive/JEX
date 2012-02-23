@@ -9,11 +9,13 @@
 (defn script-log [local-log-dir] (ut/path-join local-log-dir "script-condor-log"))
 
 (defn script-submission
-  [username uuid script-dir script-path local-log-dir]
+  [username uuid script-dir script-path local-log-dir run-on-nfs]
   (let [output (script-output script-dir)
         error  (script-error script-dir)
         log    (script-log local-log-dir)]
     (str
+      (if run-on-nfs
+        (str "remote_initialdir = " (ut/dirname script-path) "\n"))
       "universe = vanilla\n"
       "executable = /bin/bash\n" 
       "arguments = \"" script-path "\"\n"
@@ -71,6 +73,7 @@
         condor-log  (:condor-log-dir analysis-map)
         uuid        (:uuid analysis-map)
         username    (:username analysis-map)
+        run-on-nfs  (:run-on-nfs analysis-map)
         scriptname  (str username "-" uuid ".sh")
         scriptpath  (ut/path-join script-dir "logs" scriptname)
         scriptsub   (ut/path-join script-dir "logs" "iplant.cmd")
@@ -90,7 +93,7 @@
     (spit scriptpath (script analysis-map))
     
     ;Write out the script submission
-    (spit scriptsub (script-submission username uuid script-dir scriptpath local-logs))
+    (spit scriptsub (script-submission username uuid script-dir scriptpath local-logs run-on-nfs))
     
     ;Dissoc all of the other steps, they're not needed any more. 
     ;Assoc the new dummy script and generated script.
