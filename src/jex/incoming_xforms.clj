@@ -70,22 +70,22 @@
         analysis-dir  (analysis-dirname (pathize (:name condor-map)) (:now_date condor-map))]
     (cond      
       (or (nil? output-dir) (nil? create-subdir))
-      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
       
       (and (string/blank? output-dir) create-subdir)
-      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
       
       (and (string/blank? output-dir) (false? create-subdir))
-      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
       
       (and (not (string/blank? output-dir)) create-subdir)
-      (ut/add-trailing-slash (ut/path-join output-dir analysis-dir))
+      (ut/rm-last-slash (ut/path-join output-dir analysis-dir))
       
       (and (not (string/blank? output-dir)) (false? create-subdir))
-      (ut/add-trailing-slash output-dir)
+      (ut/rm-last-slash output-dir)
       
       :else
-      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir)))))
+      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir)))))
 
 (defn context-dirs
   [condor-map]
@@ -168,7 +168,7 @@
                           inputs      (:input config)]
                       (let [inputv (map vector (iterate inc 0) inputs)] 
                         (for [[input-idx input] inputv]
-                          (let [source   (. (java.net.URI. (:value input)) getPath)
+                          (let [source   (:value input)
                                 ij-id    (str "condor-" step-idx "-input-" input-idx)]
                             {:id              ij-id
                              :submission_date (:submission_date condor-map)
