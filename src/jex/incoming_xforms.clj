@@ -235,10 +235,18 @@
         fpath (ut/basename (:source jdef))]
     (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
 
+(defn- make-abs-output
+  [out-path]
+  (if (not (. out-path startsWith "/"))
+    (str "$(pwd)/" out-path)
+    out-path))
+
 (defn- output-coll [jdef]
   (let [multi (:multi jdef)
         fpath (:source jdef)]
-    (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
+    (if (= multi "collection") 
+      (make-abs-output (ut/add-trailing-slash fpath)) 
+      fpath)))
 
 (defn- parse-filter-files
   []
@@ -279,7 +287,6 @@
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
    :arguments   (str
-                  "-source $(pwd) "
                   "-destination " 
                   (string/replace output-dir #"\s" "\\\\ ") 
                   " " 

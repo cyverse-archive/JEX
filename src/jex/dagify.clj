@@ -25,9 +25,7 @@
       "+IpcUuid = \"" uuid "\"\n"
       "+IpcJobId = \"generated_script\"\n"
       "+IpcUsername = \"" username "\"\n"
-      "transfer_executables = False\n"
-      "transfer_output_files = \n"
-      "when_to_transfer_output = ON_EXIT\n"
+      "should_transfer_files = NO\n"
       "notification = NEVER\n"
       "queue\n")))
 
@@ -58,13 +56,26 @@
 
 (defn script
   [analysis-map]
-  (str 
-    "#!/bin/bash\n"
-    "pushd ..\n"
-    "EXITSTATUS=0\n"
-    (join "\n" (map script-line (jobs-in-order analysis-map)))
-    "popd\n"
-    "exit $EXITSTATUS\n"))
+  (let [job-uuid (:uuid analysis-map)
+        job-dir  (str "iplant-de-jobs/" job-uuid)
+        run-on-nfs (:run-on-nfs analysis-map)]
+    (str 
+      "#!/bin/bash\n"
+      (if (not run-on-nfs)
+        (str "cd ~\n"))
+      (if (not run-on-nfs)
+        (str "mkdir -p " job-dir "\n"))
+      (if (not run-on-nfs)
+        (str "pushd " job-dir "\n")
+        (str "pushd ..\n"))
+      (if (not run-on-nfs) 
+        "mkdir -p logs\n")
+      "EXITSTATUS=0\n"
+      (join "\n" (map script-line (jobs-in-order analysis-map)))
+      "popd\n"
+      (if (not run-on-nfs)
+        (str "rm -r " job-dir "\n"))
+      "exit $EXITSTATUS\n")))
 
 (defn dagify
   [analysis-map]
