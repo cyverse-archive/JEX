@@ -60,9 +60,10 @@
   [analysis-map]
   (str 
     "#!/bin/bash\n"
-    "mkdir logs\n"
+    "pushd ..\n"
     "EXITSTATUS=0\n"
-    (join "\n" (map script-line (jobs-in-order analysis-map))) 
+    (join "\n" (map script-line (jobs-in-order analysis-map)))
+    "popd\n"
     "exit $EXITSTATUS\n"))
 
 (defn dagify
@@ -74,7 +75,7 @@
         uuid        (:uuid analysis-map)
         username    (:username analysis-map)
         run-on-nfs  (:run-on-nfs analysis-map)
-        scriptname  (str username "-" uuid ".sh")
+        scriptname  "iplant.sh"
         scriptpath  (ut/path-join script-dir "logs" scriptname)
         scriptsub   (ut/path-join script-dir "logs" "iplant.cmd")
         local-logs  (ut/path-join condor-log "logs")]

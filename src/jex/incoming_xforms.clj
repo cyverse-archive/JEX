@@ -278,7 +278,12 @@
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
-   :arguments   (str "-destination " (string/replace output-dir #"\s" "\\\\ ") " " (exclude-arg cinput-jobs coutput-jobs))})
+   :arguments   (str
+                  "-source $(pwd) "
+                  "-destination " 
+                  (string/replace output-dir #"\s" "\\\\ ") 
+                  " " 
+                  (exclude-arg cinput-jobs coutput-jobs))})
 
 (defn extra-jobs
   [condor-map]
