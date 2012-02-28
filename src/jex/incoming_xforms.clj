@@ -70,22 +70,22 @@
         analysis-dir  (analysis-dirname (pathize (:name condor-map)) (:now_date condor-map))]
     (cond      
       (or (nil? output-dir) (nil? create-subdir))
-      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
       
       (and (string/blank? output-dir) create-subdir)
-      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
       
       (and (string/blank? output-dir) (false? create-subdir))
-      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir))
+      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
       
       (and (not (string/blank? output-dir)) create-subdir)
-      (ut/add-trailing-slash (ut/path-join output-dir analysis-dir))
+      (ut/rm-last-slash (ut/path-join output-dir analysis-dir))
       
       (and (not (string/blank? output-dir)) (false? create-subdir))
-      (ut/add-trailing-slash output-dir)
+      (ut/rm-last-slash output-dir)
       
       :else
-      (ut/add-trailing-slash (ut/path-join irods-base username "analyses" analysis-dir)))))
+      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir)))))
 
 (defn context-dirs
   [condor-map]
@@ -168,7 +168,7 @@
                           inputs      (:input config)]
                       (let [inputv (map vector (iterate inc 0) inputs)] 
                         (for [[input-idx input] inputv]
-                          (let [source   (. (java.net.URI. (:value input)) getPath)
+                          (let [source   (:value input)
                                 ij-id    (str "condor-" step-idx "-input-" input-idx)]
                             {:id              ij-id
                              :submission_date (:submission_date condor-map)
@@ -235,10 +235,18 @@
         fpath (ut/basename (:source jdef))]
     (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
 
+(defn- make-abs-output
+  [out-path]
+  (if (not (. out-path startsWith "/"))
+    (str "$(pwd)/" out-path)
+    out-path))
+
 (defn- output-coll [jdef]
   (let [multi (:multi jdef)
         fpath (:source jdef)]
-    (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
+    (if (= multi "collection") 
+      (make-abs-output (ut/add-trailing-slash fpath)) 
+      fpath)))
 
 (defn- parse-filter-files
   []
@@ -266,7 +274,7 @@
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
-   :arguments (str "-mkdir -destination " output-dir)})
+   :arguments (str "-mkdir -destination " (string/replace output-dir #"\s" "\\\\ "))})
 
 (defn shotgun-job-map
   [output-dir condor-log cinput-jobs coutput-jobs username]
@@ -278,7 +286,11 @@
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
-   :arguments   (str "-destination " output-dir " " (exclude-arg cinput-jobs coutput-jobs))})
+   :arguments   (str
+                  "-destination " 
+                  (string/replace output-dir #"\s" "\\\\ ") 
+                  " " 
+                  (exclude-arg cinput-jobs coutput-jobs))})
 
 (defn extra-jobs
   [condor-map]
