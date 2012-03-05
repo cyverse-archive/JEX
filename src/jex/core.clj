@@ -9,6 +9,7 @@
          cookies
          session]
         [clojure-commons.props]
+        [clojure-commons.error-codes]
         [clojure.java.classpath])
   (:require [compojure.route :as route]
             [compojure.handler :as handler]
@@ -27,19 +28,19 @@
   []
   (Integer/parseInt (get @jex-props "jex.app.listen-port")))
 
-(defn format-exception
-  "Formats a raised exception as a JSON object. Returns a response map."
-  [exception]
-  (log/debug "format-exception")
-  (let [string-writer (java.io.StringWriter.)
-        print-writer  (java.io.PrintWriter. string-writer)]
-    (. exception printStackTrace print-writer)
-    (let [localized-message (. exception getLocalizedMessage)
-          stack-trace       (. string-writer toString)]
-      (log/warn (str localized-message stack-trace))
-      {:status 500
-       :body (json/json-str {:message     (. exception getLocalizedMessage)
-                             :stack-trace (. string-writer toString)})})))
+;(defn format-exception
+;  "Formats a raised exception as a JSON object. Returns a response map."
+;  [exception]
+;  (log/debug "format-exception")
+;  (let [string-writer (java.io.StringWriter.)
+;        print-writer  (java.io.PrintWriter. string-writer)]
+;    (. exception printStackTrace print-writer)
+;    (let [localized-message (. exception getLocalizedMessage)
+;          stack-trace       (. string-writer toString)]
+;      (log/warn (str localized-message stack-trace))
+;      {:status 500
+;       :body (json/json-str {:message     (. exception getLocalizedMessage)
+;                             :stack-trace (. string-writer toString)})})))
 
 (defn do-submission
   [request]
@@ -67,7 +68,8 @@
 
 (defn site-handler [routes]
   (-> routes
-    jb/parse-json-body))
+    jb/parse-json-body
+    wrap-errors))
 
 (defn -main
   [& args]

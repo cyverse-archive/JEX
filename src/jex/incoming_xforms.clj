@@ -156,6 +156,12 @@
                                :log-file log-file)))))]
     new-map))
 
+(defn- handle-source-path
+  [source-path multiplicity]
+  (if (= multiplicity "collection")
+    (ut/add-trailing-slash source-path)
+    source-path))
+
 (defn input-jobs
   "Adds output job definitions to the incoming analysis map."
   [condor-map]
@@ -179,7 +185,7 @@
                              :source          source
                              :executable      @filetool-path
                              :environment     (filetool-env (:username condor-map))
-                             :arguments       (str "-get -source " source)
+                             :arguments       (str "-get -source " (handle-source-path source (:multiplicity input)))
                              :stdout          (str "logs/" (str ij-id "-stdout"))
                              :stderr          (str "logs/" (str ij-id "-stderr"))
                              :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))})))))))))
