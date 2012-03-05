@@ -37,7 +37,7 @@ The JEX has a single endpoint, "/", which takes JSON in the following format (ke
                             "name" : "input",
                             "property" : "input",
                             "type" : "File",
-                            "value" : "irods://irodsuser.irodszone:irodspassword@sampleirods.notarealurl.org:1247/path/to/irods/input",
+                            "value" : "/path/to/irods/input",
                             "id" : "wcInput",
                             "multiplicity" : "single",
                             "retain" : false
@@ -54,7 +54,7 @@ The JEX has a single endpoint, "/", which takes JSON in the following format (ke
                             "name" : "",
                             "value" : "wc_out.txt",
                             "order" : 1,
-                            "id" : "wcOutput"\
+                            "id" : "wcOutput"
                         }
                     ],
                     "output" : [
