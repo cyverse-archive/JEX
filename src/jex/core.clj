@@ -28,20 +28,6 @@
   []
   (Integer/parseInt (get @jex-props "jex.app.listen-port")))
 
-;(defn format-exception
-;  "Formats a raised exception as a JSON object. Returns a response map."
-;  [exception]
-;  (log/debug "format-exception")
-;  (let [string-writer (java.io.StringWriter.)
-;        print-writer  (java.io.PrintWriter. string-writer)]
-;    (. exception printStackTrace print-writer)
-;    (let [localized-message (. exception getLocalizedMessage)
-;          stack-trace       (. string-writer toString)]
-;      (log/warn (str localized-message stack-trace))
-;      {:status 500
-;       :body (json/json-str {:message     (. exception getLocalizedMessage)
-;                             :stack-trace (. string-writer toString)})})))
-
 (defn do-submission
   [request]
   (let [body (:body request)]
