@@ -22,6 +22,18 @@
 (def now-fmt "yyyy-MM-dd-HH-mm-ss.SSS")
 (def submission-fmt "yyyy MMM dd HH:mm:ss")
 
+(defn escape-input
+  [escape-string]
+  (let [work-string (string/trim escape-string)]
+    (string/replace work-string #"\s" "\\\\ ")))
+
+(defn escape-space
+  [escape-string]
+  (let [work-string (string/trim escape-string)]
+    (if (re-seq #"\s" work-string)
+      (str "\"" (string/replace work-string #"\s" "\\\\ ") "\"")
+      work-string)))
+
 (defn parse-date
   [format-str date-str]
   (. (java.text.SimpleDateFormat. format-str) parse date-str))
@@ -113,7 +125,7 @@
   (string/join " "
     (flatten 
       (map 
-        (fn [p] [(:name p) (:value p)]) 
+        (fn [p] [(escape-space (:name p)) (escape-space (:value p))]) 
         (sort-by :order params)))))
 
 (defn steps
@@ -185,7 +197,7 @@
                              :source          source
                              :executable      @filetool-path
                              :environment     (filetool-env (:username condor-map))
-                             :arguments       (str "-get -source " (handle-source-path source (:multiplicity input)))
+                             :arguments       (str "-get -source " (escape-input (handle-source-path source (:multiplicity input))))
                              :stdout          (str "logs/" (str ij-id "-stdout"))
                              :stderr          (str "logs/" (str ij-id "-stderr"))
                              :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))})))))))))
@@ -222,7 +234,7 @@
                                :retain          (:retain output)
                                :multi           (:multiplicity output)
                                :executable      @filetool-path
-                               :arguments       (str "-source " source " -destination " dest)
+                               :arguments       (str "-source " source " -destination " (escape-input dest))
                                :source          source
                                :dest            dest}))))))))))
 
@@ -268,7 +280,7 @@
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
     (if (> (count all-paths) 0) 
-      (str "-exclude " (string/join "," all-paths)) 
+      (str "-exclude '" (string/join "," all-paths) "'") 
       "")))
 
 (defn imkdir-job-map
@@ -280,7 +292,7 @@
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
-   :arguments (str "-mkdir -destination " (string/replace output-dir #"\s" "\\\\ "))})
+   :arguments (str "-mkdir -destination " (escape-space output-dir))})
 
 (defn shotgun-job-map
   [output-dir condor-log cinput-jobs coutput-jobs username]
@@ -294,7 +306,7 @@
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
    :arguments   (str
                   "-destination " 
-                  (string/replace output-dir #"\s" "\\\\ ") 
+                  (escape-space output-dir) 
                   " " 
                   (exclude-arg cinput-jobs coutput-jobs))})
 
