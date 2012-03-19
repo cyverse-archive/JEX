@@ -178,29 +178,29 @@
   "Adds output job definitions to the incoming analysis map."
   [condor-map]
   (assoc condor-map :steps         
-         (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
-           (for [[step-idx step] stepv]
-             (assoc step :input-jobs 
-                    (let [condor-log  (:condor-log-dir condor-map)
-                          config      (:config step)
-                          inputs      (:input config)]
-                      (let [inputv (map vector (iterate inc 0) inputs)] 
-                        (for [[input-idx input] inputv]
-                          (let [source   (:value input)
-                                ij-id    (str "condor-" step-idx "-input-" input-idx)]
-                            {:id              ij-id
-                             :submission_date (:submission_date condor-map)
-                             :type            "condor"
-                             :status          "Submitted"
-                             :retain          (:retain input)
-                             :multi           (:multiplicity input)
-                             :source          source
-                             :executable      @filetool-path
-                             :environment     (filetool-env (:username condor-map))
-                             :arguments       (str "-get -source " (escape-input (handle-source-path source (:multiplicity input))))
-                             :stdout          (str "logs/" (str ij-id "-stdout"))
-                             :stderr          (str "logs/" (str ij-id "-stderr"))
-                             :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))})))))))))
+    (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
+      (for [[step-idx step] stepv]
+        (assoc step :input-jobs 
+          (let [condor-log (:condor-log-dir condor-map)
+                config     (:config step)
+                inputs     (:input config)
+                inputv     (map vector (iterate inc 0) inputs)]
+            (for [[input-idx input] inputv]
+              (let [source   (:value input)
+                    ij-id    (str "condor-" step-idx "-input-" input-idx)]
+                {:id              ij-id
+                 :submission_date (:submission_date condor-map)
+                 :type            "condor"
+                 :status          "Submitted"
+                 :retain          (:retain input)
+                 :multi           (:multiplicity input)
+                 :source          source
+                 :executable      @filetool-path
+                 :environment     (filetool-env (:username condor-map))
+                 :arguments       (str "-get -source " (escape-input (handle-source-path source (:multiplicity input))))
+                 :stdout          (str "logs/" (str ij-id "-stdout"))
+                 :stderr          (str "logs/" (str ij-id "-stderr"))
+                 :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))}))))))))
 
 (defn output-jobs
   "Adds output job definitions to the incoming analysis map.
@@ -215,28 +215,27 @@
         :dest   String}
   "
   [condor-map]
-  (assoc condor-map 
-         :steps
-         (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
-           (for [[step-idx step] stepv]
-             (assoc step :output-jobs
-                    (let [config  (:config step)
-                          outputs (:output config)
-                          outputs-len (count outputs)]
-                      (let [outputv (map vector (iterate inc 0) outputs)] 
-                        (for [[output-idx output] outputv]
-                          (let [source      (:name output)]
-                            (let [dest (:output_dir condor-map)]
-                              {:id              (str "condor-" step-idx "-output-" output-idx)
-                               :type            "condor"
-                               :status          "Submitted"
-                               :submission_date (:submission_date condor-map)
-                               :retain          (:retain output)
-                               :multi           (:multiplicity output)
-                               :executable      @filetool-path
-                               :arguments       (str "-source " source " -destination " (escape-input dest))
-                               :source          source
-                               :dest            dest}))))))))))
+  (assoc condor-map :steps
+    (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
+      (for [[step-idx step] stepv]
+        (assoc step :output-jobs
+          (let [config  (:config step)
+                outputs (:output config)
+                outputs-len (count outputs)
+                outputv (map vector (iterate inc 0) outputs)]
+            (for [[output-idx output] outputv]
+              (let [source      (:name output)
+                    dest (:output_dir condor-map)]
+                {:id              (str "condor-" step-idx "-output-" output-idx)
+                 :type            "condor"
+                 :status          "Submitted"
+                 :submission_date (:submission_date condor-map)
+                 :retain          (:retain output)
+                 :multi           (:multiplicity output)
+                 :executable      @filetool-path
+                 :arguments       (str "-source " source " -destination " (escape-input dest))
+                 :source          source
+                 :dest            dest}))))))))
 
 (defn all-input-jobs
   [condor-map]
@@ -328,14 +327,14 @@
 (defn rm-step-component
   [condor-map]
   (assoc condor-map :steps
-         (for [step (:steps condor-map)]
-           (dissoc step :component))))
+    (for [step (:steps condor-map)]
+      (dissoc step :component))))
 
 (defn rm-step-config
   [condor-map]
   (assoc condor-map :steps
-         (for [step (:steps condor-map)]
-           (dissoc step :config))))
+    (for [step (:steps condor-map)]
+      (dissoc step :config))))
 
 (defn xform-logger
   [dropped step]
