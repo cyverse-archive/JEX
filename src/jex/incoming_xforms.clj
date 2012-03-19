@@ -280,7 +280,7 @@
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
     (if (> (count all-paths) 0) 
-      (str "-exclude '" (string/join "," all-paths) "'") 
+      (str "-exclude " (string/join "," all-paths)) 
       "")))
 
 (defn imkdir-job-map
