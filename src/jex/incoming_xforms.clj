@@ -292,7 +292,7 @@
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
-   :arguments (str "-mkdir -destination " (escape-space output-dir))})
+   :arguments (str "-mkdir -destination " (escape-input output-dir))})
 
 (defn shotgun-job-map
   [output-dir condor-log cinput-jobs coutput-jobs username]
@@ -306,7 +306,7 @@
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
    :arguments   (str
                   "-destination " 
-                  (escape-space output-dir) 
+                  (escape-input output-dir) 
                   " " 
                   (exclude-arg cinput-jobs coutput-jobs))})
 
