@@ -16,6 +16,8 @@
     (dissoc :all-input-jobs :all-output-jobs :imkdir-job))))
 
 (defn transform
+  "Applies some transformations to the condor-map. Basically used
+   to clean stuff up before dumping information into the OSM."
   [outgoing-map]
   (-> outgoing-map
     filter-map))
