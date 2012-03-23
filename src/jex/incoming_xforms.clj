@@ -163,13 +163,28 @@
      :value (:value param)
      :order (:order param)}))
 
-(defn- escape-params
+(defn wrapped-single?
+  [test-str]
+  (re-seq #"^\'.*\'$" test-str))
+
+(defn wrapped-double?
+  [test-str]
+  (re-seq #"^\".*\"$" test-str))
+
+(defn escape-value
+  [param-val]
+  (if (and (not (wrapped-single? param-val))
+           (not (wrapped-double? param-val)))
+    (escape-space param-val)
+    param-val))
+
+(defn escape-params
   "Escapes the spaces in the params list."
   [params]
   (string/join " "
     (flatten 
       (map 
-        (fn [p] [(escape-space (:name p)) (escape-space (:value p))]) 
+        #(vector (:name %1) (escape-value (:value %1))) 
         (sort-by :order params)))))
 
 (defn steps
