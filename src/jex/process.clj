@@ -48,9 +48,7 @@
 (defn validate-submission
   "Validates a submission."
   [submit-map]
-  (if (not (valid? submit-map validators))
-    (failure "Bad JSON")
-    (success)))
+  (valid? submit-map validators))
 
 (defn condor-submit
   "Submits a job to Condor. sub-path should be the path to a Condor submission file."

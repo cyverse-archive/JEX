@@ -43,7 +43,8 @@
           {:status 400 :body "Submission failed with non-zero status.\n"}
           
           :else
-          {:status 200 :body (str "Analysis submitted.\nDAG ID: " dag-id "\nOSM ID: " doc-id "\n")})))))
+          {:status 200 :body (str "Analysis submitted.\nDAG ID: " dag-id "\nOSM ID: " doc-id "\n")}))
+      {:status 500 :body "Invalid JSON.\n"})))
 
 (defroutes jex-routes
   (GET "/" [] "Welcome to the JEX.")

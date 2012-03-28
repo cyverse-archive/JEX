@@ -58,7 +58,7 @@
   [escape-string]
   (let [work-string (string/trim escape-string)]
     (if (re-seq #"\s" work-string)
-      (str "\"" (string/replace work-string #"\s" "\\\\ ") "\"")
+      (str "\"" work-string "\"")
       work-string)))
 
 (defn parse-date
@@ -103,13 +103,16 @@
 (defn analysis-attrs
   "Adds some basic top-level keys to condor-map that are needed for subsequent tranformations."
   [condor-map]
-  (assoc condor-map
-         :run-on-nfs @run-on-nfs
-         :type (or (:type condor-map) "analysis")
-         :username (-> (:username condor-map) at-underscore space-underscore)
-         :nfs_base @nfs-base
-         :irods_base @irods-base
-         :submission_date (.getTime (date))))
+  (assoc 
+    condor-map
+    :run-on-nfs @run-on-nfs
+    :type (or (:type condor-map) "analysis")
+    :username (-> (:username condor-map) 
+                at-underscore 
+                space-underscore)
+    :nfs_base @nfs-base
+    :irods_base @irods-base
+    :submission_date (.getTime (date))))
 
 (defn output-directory
   "Returns a string containing iRODS output directory based on settings condor-map. Does
@@ -420,12 +423,6 @@
   (assoc condor-map :steps
          (for [step (:steps condor-map)]
            (dissoc step :config))))
-
-;(defn xform-logger
-;  "A pass-thru"
-;  [dropped step]
-;  (log/info step)
-;  dropped)
 
 (defn transform
   "Transforms the condor-map that's passed in into something more useable."
