@@ -4,11 +4,27 @@
         [clojure.tools.logging :as log])
   (:import [java.io File]))
 
-(defn script-output [script-dir] (ut/path-join script-dir "logs" "script-output.log"))
-(defn script-error [script-dir] (ut/path-join script-dir "logs" "script-error.log"))
-(defn script-log [local-log-dir] (ut/path-join local-log-dir "script-condor-log"))
+(defn script-output
+  "Returns the path to the log containing the Condor logging
+   from out on the execution nodes."
+  [script-dir] 
+  (ut/path-join script-dir "logs" "script-output.log"))
+
+(defn script-error 
+  "Returns the path to the error log containing the Condor error
+   logging from out on the execution nodes."
+  [script-dir] 
+  (ut/path-join script-dir "logs" "script-error.log"))
+
+(defn script-log
+  "Returns the path to the log containing the Condor logging
+   from the submission node (contains the return value of the script)."
+  [local-log-dir]
+  (ut/path-join local-log-dir "script-condor-log"))
 
 (defn script-submission
+  "Generates the Condor submission file that will execute the generated
+   shell script."
   [username uuid script-dir script-path local-log-dir run-on-nfs]
   (let [output (script-output script-dir)
         error  (script-error script-dir)
@@ -29,12 +45,15 @@
       "notification = NEVER\n"
       "queue\n")))
 
-(defn script-step
-  [script-dir script-path local-log-dir]
-  {:generated_script 
-   {}})
+;(defn script-step
+;  [script-dir script-path local-log-dir]
+;  {:generated_script 
+;   {}})
 
 (defn jobs-in-order
+  "Take in the submitted analysis (processed by jex.incoming-xforms),
+   and returns a list of the job definitions in the order that they
+   should be executed in the shell script."
   [analysis-map]
   (concat
     [(:imkdir-job analysis-map)]
@@ -43,6 +62,9 @@
     [(:final-output-job analysis-map)]))
 
 (defn script-line
+  "Takes in a job definition and generates a section of the shell
+   script that will be executed out on the Condor nodes. This also
+   handles capturing the exit value of a command in the shell script."
   [job-def]
   (let [env    (:environment job-def)
         exec   (:executable job-def)
@@ -55,6 +77,9 @@
          "fi\n")))
 
 (defn script
+  "Takes in an analysis map that has been processed by
+   (jex.incoming-xforms/transform) and turns it into a shell script
+   that will be run out on the Condor cluster. Needs refactoring."
   [analysis-map]
   (let [job-uuid (:uuid analysis-map)
         job-dir  (str "iplant-de-jobs/" job-uuid)
@@ -78,6 +103,24 @@
       "exit $EXITSTATUS\n")))
 
 (defn dagify
+  "Takes in analysis map that's been processed by (jex.incoming-xforms/transform)
+   and puts together the stuff needed to submit the job to the Condor cluster. That
+   includes:
+
+   * Creating a place on the NFS mount point where the script and the Condor logs
+     will be written to out on the Condor cluster.
+
+   * Creating the local log directory (where Condor logs job stuff to on the
+     submission node).
+
+   * Generates the shell script and writes it out to the NFS mount point.
+
+   * Generates the Condor submission file and writes it out to the NFS mount point.
+
+   * Removes entries from the analysis-map that aren't needed any more.
+
+   Returns a vector containing two entries, the path to the Condor submission file
+   and the new version of the analysis-map."
   [analysis-map]
   (let [script-dir  (:working_dir analysis-map)
         dag-log-dir (ut/path-join script-dir "logs")

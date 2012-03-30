@@ -48,11 +48,10 @@
 (defn validate-submission
   "Validates a submission."
   [submit-map]
-  (if (not (valid? submit-map validators))
-    (failure "Bad JSON")
-    (success)))
+  (valid? submit-map validators))
 
 (defn condor-submit
+  "Submits a job to Condor. sub-path should be the path to a Condor submission file."
   [sub-path]
   (let [env {"PATH" (get @props "jex.env.path")
              "CONDOR_CONFIG" (get @props "jex.env.condor-config")}
@@ -62,6 +61,8 @@
       (sh/sh "condor_submit" sub-path))))
 
 (defn create-osm-record
+  "Creates a new record in the OSM, associates the notification-url with it as a
+   callback, and returns the OSM document ID in a string."
   [osm-client]
   (let [notif-url (get @props "jex.osm.notification-url")
         doc-id (osm/save-object osm-client {})
@@ -70,6 +71,9 @@
     doc-id))
 
 (defn submit
+  "Applies the incoming tranformations to the submitted request, submits the
+   job to the Condor cluster, applies outgoing transformations, and dumps the
+   resulting map to the OSM."
   [submit-map]
   (let [osm-url    (get @props "jex.osm.url")
         osm-coll   (get @props "jex.osm.collection")
