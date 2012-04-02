@@ -6,7 +6,7 @@
 Summary: jex
 Name: jex
 Version: 0.1.0
-Release: 9
+Release: 10
 Epoch: 0
 BuildArchitectures: noarch
 Group: Applications
