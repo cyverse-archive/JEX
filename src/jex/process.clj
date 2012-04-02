@@ -34,13 +34,11 @@
   [#(string? (:uuid %))
    #(string? (:username %))
    #(string? (:name %))
-   #(string? (:workspace_id %))
    #(sequential? (:steps %))
    #(every? true? 
            (for [step (:steps %)]
              (every? true?
-                     [(string? (:type step))
-                      (map? (:config step))
+                     [(map? (:config step))
                       (map? (:component step))
                       (string? (:location (:component step)))
                       (string? (:name (:component step)))])))])
