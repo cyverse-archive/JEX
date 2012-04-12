@@ -24,10 +24,6 @@
   "Replaces @ sign with _. [str-to-modify]"
   (partial replace-at "_"))
 
-(def at-space
-  "Replaces @ sign with empty string. [str-to-modify]"
-  (partial replace-at ""))
-
 (def replace-space 
   "Replaces space. [replace-str str-to-modify]" 
    (partial replacer #"\s"))
@@ -39,32 +35,6 @@
 (def now-fmt 
   "Date format used in directory and file names."
    "yyyy-MM-dd-HH-mm-ss.SSS")
-
-(def submission-fmt
-  "Date format used by other services."
-   "yyyy MMM dd HH:mm:ss")
-
-(defn escape-input
-  "Escapes the spaces in a string with backspaces. Useful
-   for filetool jobs since it doesn't wrap the string in double
-   quotes."
-  [escape-string]
-  (let [work-string (string/trim escape-string)]
-    (string/replace work-string #"\s" "\\\\ ")))
-
-(defn escape-space
-  "Escapes the spaces in a string with backspaces and wraps the
-   string in double quotes. Useful for non-filetool jobs."
-  [escape-string]
-  (let [work-string (string/trim escape-string)]
-    (if (re-seq #"\s" work-string)
-      (str "\"" work-string "\"")
-      work-string)))
-
-(defn parse-date
-  "Translates date-str into the format specified by format-str."
-  [format-str date-str]
-  (. (java.text.SimpleDateFormat. format-str) parse date-str))
 
 (defn fmt-date
   "Translates date-obj into the format specified by format-str."
@@ -107,9 +77,7 @@
     condor-map
     :run-on-nfs @run-on-nfs
     :type (or (:type condor-map) "analysis")
-    :username (-> (:username condor-map) 
-                at-underscore 
-                space-underscore)
+    :username (pathize (:username condor-map))
     :nfs_base @nfs-base
     :irods_base @irods-base
     :submission_date (.getTime (date))))
@@ -166,20 +134,22 @@
      :value (:value param)
      :order (:order param)}))
 
-(defn wrapped-single?
-  [test-str]
-  (re-seq #"^\'.*\'$" test-str))
+(defn naively-quote
+  "Naievely single-quotes a string that will be placed on the command line
+   using plain string substitution.  This works, but may leave extra pairs
+   of leading or trailing quotes if there was a leading or trailing quote
+   in the original string, which is valid, but may be confusing to human
+   readers."
+  [value]
+  (str \' (string/replace value "'" "'\\''") \'))
 
-(defn wrapped-double?
-  [test-str]
-  (re-seq #"^\".*\"$" test-str))
-
-(defn escape-value
-  [param-val]
-  (if (and (not (wrapped-single? param-val))
-           (not (wrapped-double? param-val)))
-    (escape-space param-val)
-    param-val))
+(defn quote-value
+  "Quotes and escapes a string that is supposed to be passed in to a tool on
+   the command line."
+  [value]
+  (-> value
+    naively-quote
+    (string/replace #"^''|''$" "")))
 
 (defn escape-params
   "Escapes the spaces in the params list."
@@ -187,7 +157,7 @@
   (string/join " "
     (flatten 
       (map 
-        #(vector (:name %1) (escape-value (:value %1))) 
+        #(vector (:name %1) (quote-value (:value %1))) 
         (sort-by :order params)))))
 
 (defn steps
@@ -208,13 +178,13 @@
                                           (get-in step [:component :name]))
                             args        (escape-params (param-maps (get-in step [:config :params] )))
                             stdin       (if (contains? :stdin step)
-                                          (:stdin step)
+                                          (quote-value (:stdin step))
                                           nil)
                             stdout      (if (contains? :stdout step)
-                                          (:stdout step)
+                                          (quote-value (:stdout step))
                                           (str "logs/" def-stdout)) 
                             stderr      (if (contains? :stderr step)
-                                          (:stderr step)
+                                          (quote-value (:stderr step))
                                           (str "logs/" def-stderr))
                             log-file    (if (contains? :log-file step)
                                           (ut/path-join condor-log (:log-file step))
@@ -261,7 +231,7 @@
                              :source          source
                              :executable      @filetool-path
                              :environment     (filetool-env (:username condor-map))
-                             :arguments       (str "-get -source " (escape-input (handle-source-path source (:multiplicity input))))
+                             :arguments       (str "-get -source " (quote-value (handle-source-path source (:multiplicity input))))
                              :stdout          (str "logs/" (str ij-id "-stdout"))
                              :stderr          (str "logs/" (str ij-id "-stderr"))
                              :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))})))))))))
@@ -298,7 +268,7 @@
                                :retain          (:retain output)
                                :multi           (:multiplicity output)
                                :executable      @filetool-path
-                               :arguments       (str "-source " source " -destination " (escape-input dest))
+                               :arguments       (str "-source " source " -destination " (quote-value dest))
                                :source          source
                                :dest            dest}))))))))))
 
@@ -357,7 +327,7 @@
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
     (if (> (count all-paths) 0) 
-      (str "-exclude " (string/join "," all-paths)) 
+      (str "-exclude " (quote-value (string/join "," all-paths))) 
       "")))
 
 (defn imkdir-job-map
@@ -371,7 +341,7 @@
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
-   :arguments (str "-mkdir -destination " (escape-input output-dir))})
+   :arguments (str "-mkdir -destination " (quote-value output-dir))})
 
 (defn shotgun-job-map
   "Formats a job definition for the output job that transfers
@@ -387,7 +357,7 @@
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
    :arguments   (str
                   "-destination " 
-                  (escape-input output-dir) 
+                  (quote-value output-dir) 
                   " " 
                   (exclude-arg cinput-jobs coutput-jobs))})
 

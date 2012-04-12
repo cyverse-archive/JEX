@@ -1,6 +1,4 @@
-(ns jex.outgoing-xforms
-  (:use [clojure.string :as string]
-        [clojure.tools.logging :as log]))
+(ns jex.outgoing-xforms)
 
 (defn filter-map
   [outgoing-map]
