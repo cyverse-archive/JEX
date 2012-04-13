@@ -289,7 +289,7 @@
 (defn- input-coll [jdef]
   "Examines an input job definition and returns the path to file or directory."
   (let [multi (:multi jdef)
-        fpath (ut/basename (:source jdef))]
+        fpath (quote-value (ut/basename (:source jdef)))]
     (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
 
 (defn- make-abs-output
@@ -305,7 +305,7 @@
   "Examines an output job definition and returns the path to the file or directory."
   [jdef]
   (let [multi (:multi jdef)
-        fpath (:source jdef)]
+        fpath (quote-value (:source jdef))]
     (if (= multi "collection") 
       (make-abs-output (ut/add-trailing-slash fpath)) 
       fpath)))
@@ -327,7 +327,7 @@
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
     (if (> (count all-paths) 0) 
-      (str "-exclude " (quote-value (string/join "," all-paths))) 
+      (str "-exclude " (string/join "," all-paths)) 
       "")))
 
 (defn imkdir-job-map
