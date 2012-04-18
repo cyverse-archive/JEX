@@ -48,8 +48,8 @@
 
 (defn filetool-env
   "Creates the filetool environment variables."
-  [username] 
-  (str "PATH=" @icommands-path " clientUserName=" username))
+  [] 
+  (str "PATH=" @icommands-path))
 
 (defn analysis-dirname
   "Creates a directory name for an analysis. Used when the submission
@@ -231,7 +231,7 @@
                              :multi           (:multiplicity input)
                              :source          source
                              :executable      @filetool-path
-                             :environment     ""
+                             :environment     (filetool-env)
                              :arguments       (str "get --user " user " --source " (quote-value (handle-source-path source (:multiplicity input))))
                              :stdout          (str "logs/" (str ij-id "-stdout"))
                              :stderr          (str "logs/" (str ij-id "-stderr"))
@@ -269,6 +269,7 @@
                                :submission_date (:submission_date condor-map)
                                :retain          (:retain output)
                                :multi           (:multiplicity output)
+                               :environment     (filetool-env)
                                :executable      @filetool-path
                                :arguments       (str "put --user " user " --source " source " --destination " (quote-value dest))
                                :source          source
@@ -290,9 +291,10 @@
 
 (defn- input-coll [jdef]
   "Examines an input job definition and returns the path to file or directory."
-  (let [multi (:multi jdef)
-        fpath (ut/basename (:source jdef))]
-    (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
+  (quote-value
+    (let [multi (:multi jdef)
+          fpath (ut/basename (:source jdef))]
+      (if (= multi "collection") (ut/add-trailing-slash fpath) fpath))))
 
 (defn- make-abs-output
   "Takes in an output path and makes it absolute if it's not. Note that
@@ -301,16 +303,17 @@
   [out-path]
   (if (not (. out-path startsWith "/"))
     (str "$(pwd)/" out-path)
-    out-path))
+    (quote-value out-path)))
 
 (defn- output-coll
   "Examines an output job definition and returns the path to the file or directory."
   [jdef]
-  (let [multi (:multi jdef)
-        fpath (:source jdef)]
-    (if (= multi "collection") 
-      (make-abs-output (ut/add-trailing-slash fpath)) 
-      fpath)))
+  (quote-value
+    (let [multi (:multi jdef)
+          fpath (:source jdef)]
+      (if (= multi "collection") 
+        (make-abs-output (ut/add-trailing-slash fpath)) 
+        fpath))))
 
 (defn- parse-filter-files
   "Parses the filter-files configuration option into a list."
@@ -329,7 +332,7 @@
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
     (if (> (count all-paths) 0) 
-      (str "--exclude '" (string/join "," all-paths) "'") 
+      (str "--exclude " (string/join "," all-paths)) 
       "")))
 
 (defn imkdir-job-map
@@ -338,8 +341,8 @@
   [output-dir condor-log username]
   {:id "imkdir"
    :status "Submitted"
+   :environment (filetool-env)
    :executable @filetool-path
-   :environment ""
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
@@ -353,7 +356,7 @@
   {:id          "output-last"
    :status      "Submitted"
    :executable  @filetool-path
-   :environment ""
+   :environment (filetool-env)
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
