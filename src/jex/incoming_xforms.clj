@@ -230,8 +230,8 @@
                              :multi           (:multiplicity input)
                              :source          source
                              :executable      @filetool-path
-                             :environment     (filetool-env (:username condor-map))
-                             :arguments       (str "-get -source " (quote-value (handle-source-path source (:multiplicity input))))
+                             :environment     ""
+                             :arguments       (str "get --source " (quote-value (handle-source-path source (:multiplicity input))))
                              :stdout          (str "logs/" (str ij-id "-stdout"))
                              :stderr          (str "logs/" (str ij-id "-stderr"))
                              :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))})))))))))
@@ -268,7 +268,7 @@
                                :retain          (:retain output)
                                :multi           (:multiplicity output)
                                :executable      @filetool-path
-                               :arguments       (str "-source " source " -destination " (quote-value dest))
+                               :arguments       (str "put --source " source " --destination " (quote-value dest))
                                :source          source
                                :dest            dest}))))))))))
 
@@ -327,7 +327,7 @@
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
     (if (> (count all-paths) 0) 
-      (str "-exclude " (string/join "," all-paths)) 
+      (str "--exclude " (string/join "," all-paths)) 
       "")))
 
 (defn imkdir-job-map
@@ -337,11 +337,11 @@
   {:id "imkdir"
    :status "Submitted"
    :executable @filetool-path
-   :environment (filetool-env username)
+   :environment ""
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
-   :arguments (str "-mkdir -destination " (quote-value output-dir))})
+   :arguments (str "mkdir --destination " (quote-value output-dir))})
 
 (defn shotgun-job-map
   "Formats a job definition for the output job that transfers
@@ -351,15 +351,14 @@
   {:id          "output-last"
    :status      "Submitted"
    :executable  @filetool-path
-   :environment (filetool-env username)
+   :environment ""
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
-   :arguments   (str
-                  "-destination " 
-                  (quote-value output-dir) 
-                  " " 
-                  (exclude-arg cinput-jobs coutput-jobs))})
+   :arguments   (str "put --destination " 
+                     (quote-value output-dir) 
+                     " " 
+                     (exclude-arg cinput-jobs coutput-jobs))})
 
 (defn extra-jobs
   "Associates the :final-output-job and :imkdir-job definitions
