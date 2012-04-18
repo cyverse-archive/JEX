@@ -82,7 +82,7 @@
    that will be run out on the Condor cluster. Needs refactoring."
   [analysis-map]
   (let [job-uuid (:uuid analysis-map)
-        job-dir  (str "iplant-de-jobs/" job-uuid)
+        job-dir  (str "iplant-de-jobs/" (:username analysis-map) "/" job-uuid)
         run-on-nfs (:run-on-nfs analysis-map)]
     (str 
       "#!/bin/bash\n"

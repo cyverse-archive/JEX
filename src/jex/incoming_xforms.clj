@@ -66,7 +66,7 @@
 
 (defn pathize
   "Makes a string safe for inclusion in a path by replacing @ and spaces with
-   underscores.."
+   underscores."
   [p]
   (-> p at-underscore space-underscore))
 
@@ -216,6 +216,7 @@
            (for [[step-idx step] stepv]
              (assoc step :input-jobs 
                     (let [condor-log  (:condor-log-dir condor-map)
+                          user        (:username condor-map)
                           config      (:config step)
                           inputs      (:input config)]
                       (let [inputv (map vector (iterate inc 0) inputs)] 
@@ -231,7 +232,7 @@
                              :source          source
                              :executable      @filetool-path
                              :environment     ""
-                             :arguments       (str "get --source " (escape-input (handle-source-path source (:multiplicity input))))
+                             :arguments       (str "get --user " user " --source " (quote-value (handle-source-path source (:multiplicity input))))
                              :stdout          (str "logs/" (str ij-id "-stdout"))
                              :stderr          (str "logs/" (str ij-id "-stderr"))
                              :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))})))))))))
@@ -255,6 +256,7 @@
            (for [[step-idx step] stepv]
              (assoc step :output-jobs
                     (let [config  (:config step)
+                          user    (:username condor-map)
                           outputs (:output config)
                           outputs-len (count outputs)]
                       (let [outputv (map vector (iterate inc 0) outputs)] 
@@ -268,7 +270,7 @@
                                :retain          (:retain output)
                                :multi           (:multiplicity output)
                                :executable      @filetool-path
-                               :arguments       (str "put --source " source " --destination " (escape-input dest))
+                               :arguments       (str "put --user " user " --source " source " --destination " (quote-value dest))
                                :source          source
                                :dest            dest}))))))))))
 
@@ -289,7 +291,7 @@
 (defn- input-coll [jdef]
   "Examines an input job definition and returns the path to file or directory."
   (let [multi (:multi jdef)
-        fpath (quote-value (ut/basename (:source jdef)))]
+        fpath (ut/basename (:source jdef))]
     (if (= multi "collection") (ut/add-trailing-slash fpath) fpath)))
 
 (defn- make-abs-output
@@ -305,7 +307,7 @@
   "Examines an output job definition and returns the path to the file or directory."
   [jdef]
   (let [multi (:multi jdef)
-        fpath (quote-value (:source jdef))]
+        fpath (:source jdef)]
     (if (= multi "collection") 
       (make-abs-output (ut/add-trailing-slash fpath)) 
       fpath)))
@@ -327,7 +329,7 @@
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
     (if (> (count all-paths) 0) 
-      (str "--exclude " (string/join "," all-paths)) 
+      (str "--exclude '" (string/join "," all-paths) "'") 
       "")))
 
 (defn imkdir-job-map
@@ -337,11 +339,11 @@
   {:id "imkdir"
    :status "Submitted"
    :executable @filetool-path
-   :environment (filetool-env username)
+   :environment ""
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
-   :arguments (str "mkdir --destination " (escape-input output-dir))})
+   :arguments (str "mkdir --user " username " --destination " (quote-value output-dir))})
 
 (defn shotgun-job-map
   "Formats a job definition for the output job that transfers
@@ -351,12 +353,12 @@
   {:id          "output-last"
    :status      "Submitted"
    :executable  @filetool-path
-   :environment (filetool-env username)
+   :environment ""
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
-   :arguments   (str "put --destination " 
-                     (escape-input output-dir) 
+   :arguments   (str "put --user " username " --destination " 
+                     (quote-value output-dir) 
                      " " 
                      (exclude-arg cinput-jobs coutput-jobs))})
 
