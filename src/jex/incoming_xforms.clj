@@ -302,18 +302,17 @@
    the Condor cluster."
   [out-path]
   (if (not (. out-path startsWith "/"))
-    (str "$(pwd)/" out-path)
+    (str "$(pwd)/" (quote-value out-path))
     (quote-value out-path)))
 
 (defn- output-coll
   "Examines an output job definition and returns the path to the file or directory."
   [jdef]
-  (quote-value
-    (let [multi (:multi jdef)
-          fpath (:source jdef)]
-      (if (= multi "collection") 
-        (make-abs-output (ut/add-trailing-slash fpath)) 
-        fpath))))
+  (let [multi (:multi jdef)
+        fpath (:source jdef)]
+    (if (= multi "collection") 
+      (make-abs-output (ut/add-trailing-slash fpath)) 
+      fpath)))
 
 (defn- parse-filter-files
   "Parses the filter-files configuration option into a list."
