@@ -53,9 +53,13 @@
 
 (defn analysis-dirname
   "Creates a directory name for an analysis. Used when the submission
-   doesn't specify an output directory."
+   doesn't specify an output directory.  Some types of jobs, for example
+   Foundational API jobs, include a timestamp in the job name, so a timestamp
+   will not be appended to teh directory name in those cases."
   [analysis-name date-str]
-  (str analysis-name "-" date-str))
+  (if-not (re-find #"-\d{4}(?:-\d{2}){5}\.\d+$" analysis-name)
+    (str analysis-name "-" date-str)
+    analysis-name))
 
 (defn now-date
   "Adds a key to condor-map called :now_date that's formatted like now-fmt."
