@@ -10,7 +10,8 @@
          session]
         [clojure-commons.props]
         [clojure-commons.error-codes]
-        [clojure.java.classpath])
+        [clojure.java.classpath]
+        [slingshot.slingshot :only [try+ throw+]])
   (:require [compojure.route :as route]
             [compojure.handler :as handler]
             [ring.util.response :as rsp-utils]
@@ -40,20 +41,21 @@
       (let [[exit-code dag-id doc-id] (jp/submit body)]
         (cond
           (not= exit-code 0)
-          {:status 400 :body "Submission failed with non-zero status.\n"}
+          (throw+ {:error_code "ERR_FAILED_NON_ZERO"})
           
           :else
-          {:status 200 :body (str "Analysis submitted.\nDAG ID: " dag-id "\nOSM ID: " doc-id "\n")}))
-      {:status 500 :body "Invalid JSON.\n"})))
+          {:sub_id dag-id
+           :osm_id doc-id}))
+      (throw+ {:error_code "ERR_INVALID_JSON"}))))
 
 (defroutes jex-routes
   (GET "/" [] "Welcome to the JEX.")
   
   (POST "/" request
-        (try
-          (do-submission request)
-          (catch java.lang.Exception e
-            (format-exception e)))))
+        (trap "submit" do-submission request))
+  
+  (DELETE "/stop/:uuid" [uuid]
+          (trap "stop" jp/stop-analysis uuid)))
 
 (defn site-handler [routes]
   (-> routes

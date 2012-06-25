@@ -1,5 +1,6 @@
 (ns jex.process
-  (:use [jex.json-validator])
+  (:use [jex.json-validator]
+        [slingshot.slingshot :only [throw+]])
   (:require [jex.incoming-xforms :as ix]
             [jex.outgoing-xforms :as ox]
             [jex.dagify :as dagify]
@@ -67,6 +68,39 @@
         result (osm/add-callback osm-client doc-id "on_update" notif-url)]
     (log/warn result)
     doc-id))
+
+(defn condor-rm
+  "Stops a condor job."
+  [sub-id]
+  (let [env {"PATH" (get @props "jex.env.path")
+             "CONDOR_CONFIG" (get @props "jex.env.condor-config")}
+        shellout (partial sh/sh :env env)]
+    (sh/with-sh-env
+      env
+      (sh/sh "condor_rm" sub-id))))
+
+(defn stop-analysis
+  "Calls condor_rm on the submission id associated with the provided analysis id."
+  [uuid]
+  (let [osm-url    (get @props "jex.osm.url")
+        osm-coll   (get @props "jex.osm.collection")
+        osm-client (osm/create osm-url osm-coll)
+        sub-id (get-in 
+                 (first 
+                   (:objects
+                     (json/read-json 
+                       (osm/query osm-client {:state.uuid uuid})))) 
+                 [:state :sub_id])]
+    (if sub-id
+      (do 
+        (let [{:keys [exit out err]} (condor-rm sub-id)]
+          (when-not (= exit 0)
+            (throw+ {:error_code "ERR_FAILED_NON_ZERO" 
+                     :sub_id sub-id
+                     :out out
+                     :err err})))
+        {:condor-id sub-id})
+      (throw+ {:error_code "ERR_MISSING_CONDOR_ID" :uuid uuid}))))
 
 (defn submit
   "Applies the incoming tranformations to the submitted request, submits the
