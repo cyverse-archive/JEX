@@ -101,6 +101,27 @@ An error will result in a 500 HTTP error code and a stack-trace wrapped in JSON:
         "stack-trace" : "stacktrace here"
     }
 
+Redirecting stdout and stderr
+-----------------------------
+
+Each step in the analysis can independently redirect stdout and stderr to files within the working directory. To do this, add the "stderr" and/or "stdout" fields to the step object. For example:
+
+    {
+        "name" : "step_1",
+        "type" : "condor",
+        "stdout" : "this_is_a_stdout_redirection",
+        "stderr" : "this_is_a_stderr_redirection",
+        "config" : {
+            ...Removed for irrelevancy on this topic...
+        },
+        "component" : {
+            ...Removed for irrelevancy on this topic...
+        }
+    }
+
+The stdout and stderr fields should contain paths relative to the current working directory. Invalid paths will either result in stderr/stdout being lost or in an analysis execution failure. Since we don't have access to the execution nodes when jobs are submitted, the JEX cannot confirm that the paths listed in stderr/stdout are valid.
+
+
 Stopping a running analysis
 ---------------------------
 
