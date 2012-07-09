@@ -19,5 +19,5 @@
                  "http://projects.iplantcollaborative.org/archiva/repository/internal/",
                  "renci.repository"
                  "http://ci-dev.renci.org/nexus/content/repositories/snapshots/"}
-  :plugins [[org.iplantc/lein-iplant-rpm "1.2.1-SNAPSHOT"]]
+  :plugins [[org.iplantc/lein-iplant-rpm "1.3.0-SNAPSHOT"]]
   :description "A backend job execution service that submits jobs to Condor.")
