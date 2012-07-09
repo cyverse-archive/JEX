@@ -9,7 +9,6 @@
                  [org.iplantc/clojure-commons "1.1.0-SNAPSHOT"]
                  [slingshot "0.10.1"]]
   :iplant-rpm {:summary "jex",
-               :release 1,
                :dependencies ["iplant-service-config >= 0.1.0-5"],
                :config-files ["log4j.properties"],
                :config-path "conf"}
