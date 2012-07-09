@@ -130,7 +130,7 @@
            :working_dir working-dir
            :condor-log-dir log-dir)))
 
-(defn- param-maps
+(defn param-maps
   "This looks goofy, but it filters out unneeded crap from the params."
   [params]
   (for [param params]

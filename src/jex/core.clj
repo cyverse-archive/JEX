@@ -54,6 +54,9 @@
   (POST "/" request
         (trap "submit" do-submission request))
   
+  (POST "/arg-preview" request
+        (trap "arg-preview" jp/cmdline-preview (:body request)))
+  
   (DELETE "/stop/:uuid" [uuid]
           (trap "stop" jp/stop-analysis uuid)))
 

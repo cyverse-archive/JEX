@@ -121,6 +121,53 @@ Each step in the analysis can independently redirect stdout and stderr to files 
 
 The stdout and stderr fields should contain paths relative to the current working directory. Invalid paths will either result in stderr/stdout being lost or in an analysis execution failure. Since we don't have access to the execution nodes when jobs are submitted, the JEX cannot confirm that the paths listed in stderr/stdout are valid.
 
+Previewing Arguments
+--------------------
+
+To get a preview of an argument list, do a HTTP POST against /arg-preview. The JSON POSTed to this URL should be in this format:
+
+    {
+        "params" : [
+            {
+                "name" : "-t", 
+                "value" : "foo", 
+                "order" : 2
+            }, 
+            {
+                "name" : "-u", 
+                "value" : "bar", 
+                "order" : 1
+            }, 
+            {
+                "name" : "-v", 
+                "value" : "baz", 
+                "order" : 0
+            }
+        ]
+    }
+
+Here's a sample curl command:
+
+    curl -H "Content-Type:application/json" -d '{"params" : [{"name" : "-t", "value" : "foo", "order" : 2}, {"name" : "-u", "value" : "bar", "order" : 1}, {"name" : "-v", "value" : "baz", "order" : 0}]}' http://lame.example.com31330/arg-preview
+
+Here's the successful response:
+
+    {
+        "status":"success",
+        "action":"arg-preview",
+        "params":"-v 'baz' -u 'bar' -t 'foo'"
+    }
+
+Unsuccessful responses will return a HTTP 500 status code and JSON containing an error code. The general format of the error response is:
+
+    {
+        "error_code" : "<an error code>"
+    }
+
+The error JSON may contain additional keys, but don't write code against them. Here are the known error codes that may get returned:
+
+    * ERR_UNCHECKED_EXCEPTION
+    * ERR_INVALID_JSON
 
 Stopping a running analysis
 ---------------------------

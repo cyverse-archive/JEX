@@ -102,6 +102,30 @@
         {:condor-id sub-id})
       (throw+ {:error_code "ERR_MISSING_CONDOR_ID" :uuid uuid}))))
 
+(defn cmdline-preview
+  "Accepts a map in the following format:
+   {:params [
+       {:name \"-t\"
+        :value \"foo\"
+        :order 0
+   ]}
+
+   Returns a map in the format:
+   {:params \"-t foo\"}"
+  [param-obj]
+  (let [param? #(and (contains? %1 :name)
+                     (contains? %1 :value)
+                     (contains? %1 :order))] 
+    (when-not (contains? param-obj :params)
+      (throw+ {:error_code "ERR_INVALID_JSON"
+               :message "Missing params key."}))
+    
+    (when-not (every? true? (map param? (:params param-obj)))
+      (throw+ {:error_code "ERR_INVALID_JSON"
+               :message "All objects must have 'name', 'value', and 'order' keys."})))
+  
+  (hash-map :params (ix/escape-params (ix/param-maps (:params param-obj)))))
+
 (defn submit
   "Applies the incoming tranformations to the submitted request, submits the
    job to the Condor cluster, applies outgoing transformations, and dumps the
