@@ -164,6 +164,15 @@
         #(vector (:name %1) (quote-value (:value %1))) 
         (sort-by :order params)))))
 
+(defn format-env-variables
+  "Formats and escapes environment variables that are passed to it."
+  [env-map]
+  (string/join 
+    " " 
+    (mapv 
+      #(str (name (first %1)) "=" (str "\"" (last %1) "\"")) 
+      (seq env-map))))
+
 (defn steps
   "Processes the steps in a map into a saner format."
   [condor-map]
@@ -185,7 +194,7 @@
                                           (quote-value (:stdin step))
                                           nil)
                             environment (if (contains? step :environment)
-                                          (:environment step)
+                                          (format-env-variables (:environment step))
                                           nil)
                             stdout      (if (contains? step :stdout)
                                           (quote-value (:stdout step))
