@@ -210,6 +210,7 @@
                                :type "condor"
                                :submission_date (:submission_date condor-map)
                                :status "Submitted"
+                               :environment environment
                                :executable exec
                                :arguments args
                                :stdout stdout
