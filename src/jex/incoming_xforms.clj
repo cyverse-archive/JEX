@@ -75,7 +75,8 @@
   (-> p at-underscore space-underscore))
 
 (defn analysis-attrs
-  "Adds some basic top-level keys to condor-map that are needed for subsequent tranformations."
+  "Adds some basic top-level keys to condor-map that are needed for subsequent
+   tranformations."
   [condor-map]
   (assoc 
     condor-map
@@ -87,44 +88,61 @@
     :submission_date (.getTime (date))))
 
 (defn output-directory
-  "Returns a string containing iRODS output directory based on settings condor-map. Does
-   not actually associate the value with :output_dir in condor-map."
+  "Returns a string containing iRODS output directory based on settings
+   condor-map. Does not actually associate the value with :output_dir in condor-map."
   [condor-map]
   (let [output-dir    (:output_dir condor-map)
         create-subdir (:create_output_subdir condor-map)
         irods-base    (:irods_base condor-map)
         username      (:username condor-map)
-        analysis-dir  (analysis-dirname (pathize (:name condor-map)) (:now_date condor-map))]
+        analysis-dir  (analysis-dirname
+                       (pathize (:name condor-map))
+                       (:now_date condor-map))]
     (cond      
-      (or (nil? output-dir) (nil? create-subdir))
-      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
+     (or (nil? output-dir)
+         (nil? create-subdir))
+     (ut/rm-last-slash
+      (ut/path-join irods-base username "analyses" analysis-dir))
       
-      (and (string/blank? output-dir) create-subdir)
-      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
+     (and
+      (string/blank? output-dir)
+      create-subdir)
+     (ut/rm-last-slash
+      (ut/path-join irods-base username "analyses" analysis-dir))
       
-      (and (string/blank? output-dir) (false? create-subdir))
-      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir))
+     (and
+      (string/blank? output-dir)
+      (false? create-subdir))
+     (ut/rm-last-slash
+      (ut/path-join irods-base username "analyses" analysis-dir))
       
-      (and (not (string/blank? output-dir)) create-subdir)
-      (ut/rm-last-slash (ut/path-join output-dir analysis-dir))
+     (and
+      (not (string/blank? output-dir))
+      create-subdir)
+     (ut/rm-last-slash
+      (ut/path-join output-dir analysis-dir))
       
       (and (not (string/blank? output-dir)) (false? create-subdir))
       (ut/rm-last-slash output-dir)
       
       :else
-      (ut/rm-last-slash (ut/path-join irods-base username "analyses" analysis-dir)))))
+      (ut/rm-last-slash
+       (ut/path-join irods-base username "analyses" analysis-dir)))))
 
 (defn context-dirs
-  "Adds the :output_dir :working_dir and :condor-log-dir keys to the condor-map. These
-   values are calculated using values that were added by (analysis-attrs)."
+  "Adds the :output_dir :working_dir and :condor-log-dir keys to the condor-map.
+   These values are calculated using values that were added by (analysis-attrs)."
   [condor-map]
   (let [username     (:username condor-map)
         nfs-base     (:nfs_base condor-map)
-        analysis-dir (analysis-dirname (pathize (:name condor-map)) (:now_date condor-map))
+        analysis-dir (analysis-dirname
+                      (pathize (:name condor-map))
+                      (:now_date condor-map))
         log-dir-path (ut/path-join @condor-log-path username analysis-dir)
         log-dir      (ut/add-trailing-slash log-dir-path)
         output-dir   (output-directory condor-map)
-        working-dir  (ut/add-trailing-slash (ut/path-join nfs-base username analysis-dir))]
+        working-dir  (ut/add-trailing-slash
+                      (ut/path-join nfs-base username analysis-dir))]
     (assoc condor-map 
            :output_dir output-dir
            :working_dir working-dir
@@ -173,86 +191,140 @@
       #(str (name (first %1)) "=" (str "\"" (last %1) "\"")) 
       (seq env-map))))
 
+(defn executable
+  [step-map]
+  (ut/path-join
+   (get-in step-map [:component :location])
+   (get-in step-map [:component :name])))
+
+(defn arguments
+  [step-map]
+  (-> (get-in step-map [:config :params]) param-maps escape-params))
+
+(defn stdin
+  [step-map]
+  (if (contains? step-map :stdin)
+    (quote-value (:stdin step-map))
+    nil))
+
+(defn stdout
+  [step-map index]
+  (if (contains? step-map :stdout)
+    (quote-value (:stdout step-map))
+    (str "logs/" "condor-stdout-" index)))
+
+(defn stderr
+  [step-map index]
+  (if (contains? step-map :stderr)
+    (quote-value (:stderr step-map))
+    (str "logs/" "condor-stderr-" index)))
+
+(defn environment
+  [step-map]
+  (if (contains? step-map :environment)
+    (format-env-variables (:environment step-map))
+    nil))
+
+(defn log-file
+  [step-map index condor-log]
+  (if (contains? step-map :log-file)
+    (ut/path-join condor-log (:log-file step-map))
+    (ut/path-join condor-log "logs" (str "condor-log-" index))))
+
+(defn step-iterator-vec
+  [condor-map]
+  (map vector (iterate inc 0) (:steps condor-map)))
+
+(defn process-steps
+  [condor-map]
+  (for [[step-idx step] (step-iterator-vec condor-map)]
+    (assoc step 
+      :id (str "condor-" step-idx)
+      :type "condor"
+      :submission_date (:submission_date condor-map)
+      :status "Submitted"
+      :environment (environment step)
+      :executable (executable step)
+      :arguments (arguments step)
+      :stdout (stdout step step-idx)
+      :stderr (stderr step step-idx)
+      :log-file (log-file step step-idx (:condor-log-dir condor-map)))))
+
 (defn steps
   "Processes the steps in a map into a saner format."
   [condor-map]
-  (let [new-map (assoc 
-                  condor-map 
-                  :steps
-                  (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
-                    (for [[step-idx step] stepv]
-                      (let [id          (str "condor-" step-idx)
-                            condor-log  (:condor-log-dir condor-map)
-                            def-stdout  (str "condor-stdout-" step-idx)
-                            def-stderr  (str "condor-stderr-" step-idx)
-                            def-log     (str "condor-log-" step-idx)
-                            exec        (ut/path-join 
-                                          (get-in step [:component :location]) 
-                                          (get-in step [:component :name]))
-                            args        (escape-params (param-maps (get-in step [:config :params] )))
-                            stdin       (if (contains? step :stdin)
-                                          (quote-value (:stdin step))
-                                          nil)
-                            environment (if (contains? step :environment)
-                                          (format-env-variables (:environment step))
-                                          nil)
-                            stdout      (if (contains? step :stdout)
-                                          (quote-value (:stdout step))
-                                          (str "logs/" def-stdout)) 
-                            stderr      (if (contains? step :stderr)
-                                          (quote-value (:stderr step))
-                                          (str "logs/" def-stderr))
-                            log-file    (if (contains? step :log-file)
-                                          (ut/path-join condor-log (:log-file step))
-                                          (ut/path-join condor-log "logs" def-log))]
-                        (assoc step 
-                               :id id
-                               :type "condor"
-                               :submission_date (:submission_date condor-map)
-                               :status "Submitted"
-                               :environment environment
-                               :executable exec
-                               :arguments args
-                               :stdout stdout
-                               :stderr stderr
-                               :log-file log-file)))))]
-    new-map))
+  (assoc condor-map :steps (process-steps condor-map)))
 
 (defn- handle-source-path
-  "Takes in a source path and a multiplicity and adds a trailing slash if needed."
+  "Takes in a source path and a multiplicity and adds a trailing slash if
+   needed."
   [source-path multiplicity]
   (if (= multiplicity "collection")
     (ut/add-trailing-slash source-path)
     source-path))
 
+(defn input-id-str
+  [step-index input-index]
+  (str "condor-" step-index "-input-" input-index))
+
+(defn input-stdout
+  [step-index input-index]
+  (str "logs/" (input-id-str step-index input-index) "-stdout"))
+
+(defn input-stderr
+  [step-index input-index]
+  (str "logs/" (input-id-str step-index input-index) "-stderr"))
+
+(defn input-log-file
+  [condor-log step-index input-index]
+  (ut/path-join
+   condor-log
+   "logs"
+   (str (input-id-str step-index input-index) "-log")))
+
+(defn input-arguments
+  [user source input-map]
+  (str "get --user " user
+       " --source " (quote-value
+                     (handle-source-path source (:multiplicity input-map)))))
+
+(defn input-iterator-vec
+  [step-map]
+  (map vector (iterate inc 0) (get-in step-map [:config :input])))
+
+(defn process-step-inputs
+  [condor-map [step-idx step-map]]
+  (for [[input-idx input] (input-iterator-vec step-map)]
+    {:id              (input-id-str step-idx input-idx)
+     :submission_date (:submission_date condor-map)
+     :type            "condor"
+     :status          "Submitted"
+     :retain          (:retain input)
+     :multi           (:multiplicity input)
+     :source          (:value input)
+     :executable      @filetool-path
+     :environment     (filetool-env)
+     :arguments       (input-arguments
+                       (:username condor-map)
+                       (:value input)
+                       input)
+     :stdout          (input-stdout step-idx input-idx)
+     :stderr          (input-stderr step-idx input-idx)
+     :log-file        (input-log-file
+                       (:condor-log-dir condor-map)
+                       step-idx
+                       input-idx)}))
+
+(defn process-inputs
+  [condor-map]
+  (for [step-iter (step-iterator-vec condor-map)]
+    (assoc (last step-iter)
+      :input-jobs (process-step-inputs condor-map step-iter))))
+
 (defn input-jobs
   "Adds output job definitions to the incoming analysis map."
   [condor-map]
-  (assoc condor-map :steps         
-         (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
-           (for [[step-idx step] stepv]
-             (assoc step :input-jobs 
-                    (let [condor-log  (:condor-log-dir condor-map)
-                          user        (:username condor-map)
-                          config      (:config step)
-                          inputs      (:input config)]
-                      (let [inputv (map vector (iterate inc 0) inputs)] 
-                        (for [[input-idx input] inputv]
-                          (let [source   (:value input)
-                                ij-id    (str "condor-" step-idx "-input-" input-idx)]
-                            {:id              ij-id
-                             :submission_date (:submission_date condor-map)
-                             :type            "condor"
-                             :status          "Submitted"
-                             :retain          (:retain input)
-                             :multi           (:multiplicity input)
-                             :source          source
-                             :executable      @filetool-path
-                             :environment     (filetool-env)
-                             :arguments       (str "get --user " user " --source " (quote-value (handle-source-path source (:multiplicity input))))
-                             :stdout          (str "logs/" (str ij-id "-stdout"))
-                             :stderr          (str "logs/" (str ij-id "-stderr"))
-                             :log-file        (ut/path-join condor-log "logs" (str ij-id "-log"))})))))))))
+  (assoc condor-map :steps (process-inputs condor-map)))
 
 (defn output-jobs
   "Adds output job definitions to the incoming analysis map.
