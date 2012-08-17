@@ -25,30 +25,20 @@
 (defn script-submission
   "Generates the Condor submission file that will execute the generated
    shell script."
-  [username uuid script-dir script-path local-log-dir run-on-nfs]
-  (let [output (script-output script-dir)
-        error  (script-error script-dir)
-        log    (script-log local-log-dir)]
-    (str
-      (if run-on-nfs
-        (str "remote_initialdir = " (ut/dirname script-path) "\n"))
-      "universe = vanilla\n"
-      "executable = /bin/bash\n" 
-      "arguments = \"" script-path "\"\n"
-      "output = " output "\n"
-      "error = " error "\n"
-      "log = " log "\n"
-      "+IpcUuid = \"" uuid "\"\n"
-      "+IpcJobId = \"generated_script\"\n"
-      "+IpcUsername = \"" username "\"\n"
-      "should_transfer_files = NO\n"
-      "notification = NEVER\n"
-      "queue\n")))
-
-;(defn script-step
-;  [script-dir script-path local-log-dir]
-;  {:generated_script 
-;   {}})
+  [username uuid script-dir script-path local-log-dir]
+  (str
+   "universe = vanilla\n"
+   "executable = /bin/bash\n" 
+   "arguments = \"" script-path "\"\n"
+   "output = " (script-output script-dir) "\n"
+   "error = " (script-error script-dir) "\n"
+   "log = " (script-log local-log-dir) "\n"
+   "+IpcUuid = \"" uuid "\"\n"
+   "+IpcJobId = \"generated_script\"\n"
+   "+IpcUsername = \"" username "\"\n"
+   "should_transfer_files = NO\n"
+   "notification = NEVER\n"
+   "queue\n"))
 
 (defn jobs-in-order
   "Take in the submitted analysis (processed by jex.incoming-xforms),
@@ -82,30 +72,23 @@
    that will be run out on the Condor cluster. Needs refactoring."
   [analysis-map]
   (let [job-uuid (:uuid analysis-map)
-        job-dir  (str "iplant-de-jobs/" (:username analysis-map) "/" job-uuid)
-        run-on-nfs (:run-on-nfs analysis-map)]
+        job-dir  (str "iplant-de-jobs/" (:username analysis-map) "/" job-uuid)]
     (str 
-      "#!/bin/bash\n"
-      (if (not run-on-nfs)
-        (str "cd ~\n"))
-      (if (not run-on-nfs)
-        (str "mkdir -p " job-dir "\n"))
-      (if (not run-on-nfs)
-        (str "pushd " job-dir "\n")
-        (str "pushd ..\n"))
-      (if (not run-on-nfs) 
-        "mkdir -p logs\n")
-      "EXITSTATUS=0\n"
-      (join "\n" (map script-line (jobs-in-order analysis-map)))
-      "popd\n"
-      (if (not run-on-nfs)
-        (str "rm -r " job-dir "\n"))
-      "exit $EXITSTATUS\n")))
+     "#!/bin/bash\n"
+     "cd ~\n"
+     "mkdir -p " job-dir "\n"
+     "pushd " job-dir "\n"
+     "mkdir -p logs\n" 
+     "EXITSTATUS=0\n"
+     (join "\n" (map script-line (jobs-in-order analysis-map)))
+     "popd\n"
+     "rm -r " job-dir "\n"
+     "exit $EXITSTATUS\n")))
 
 (defn dagify
   "Takes in analysis map that's been processed by (jex.incoming-xforms/transform)
-   and puts together the stuff needed to submit the job to the Condor cluster. That
-   includes:
+   and puts together the stuff needed to submit the job to the Condor cluster.
+   That includes:
 
    * Creating a place on the NFS mount point where the script and the Condor logs
      will be written to out on the Condor cluster.
@@ -115,12 +98,13 @@
 
    * Generates the shell script and writes it out to the NFS mount point.
 
-   * Generates the Condor submission file and writes it out to the NFS mount point.
+   * Generates the Condor submission file and writes it out to the NFS mount
+     point.
 
    * Removes entries from the analysis-map that aren't needed any more.
 
-   Returns a vector containing two entries, the path to the Condor submission file
-   and the new version of the analysis-map."
+   Returns a vector containing two entries, the path to the Condor submission
+   file and the new version of the analysis-map."
   [analysis-map]
   (let [script-dir  (:working_dir analysis-map)
         dag-log-dir (ut/path-join script-dir "logs")
@@ -136,27 +120,34 @@
     
     ;Create the directory the script and log files will go into.
     (log/info (str "Creating submission directories: " dag-log-dir))
-    (if (not (.mkdirs (File. dag-log-dir)))
+    (if-not (.mkdirs (File. dag-log-dir))
       (log/warn (str "Failed to create directory: " dag-log-dir)))
     
     ;Create the local log directory.
     (log/info (str "Creating the local log directory: " local-logs))
-    (if (not (.mkdirs (File. local-logs)))
+    (if-not (.mkdirs (File. local-logs))
       (log/warn (str "Failed to create directory " local-logs)))
     
     ;Write out the script
     (spit scriptpath (script analysis-map))
     
     ;Write out the script submission
-    (spit scriptsub (script-submission username uuid script-dir scriptpath local-logs run-on-nfs))
+    (spit
+     scriptsub
+     (script-submission
+      username
+      uuid
+      script-dir
+      scriptpath
+      local-logs))
     
     ;Dissoc all of the other steps, they're not needed any more. 
     ;Assoc the new dummy script and generated script.
     [scriptsub (-> analysis-map
-                  (dissoc :steps)
-                  (assoc :executable "/bin/bash"
-                         :args scriptpath
-                         :status "Submitted"
-                         :output (script-output script-dir)
-                         :error (script-error script-dir)
-                         :log (script-log local-logs)))]))
+                   (dissoc :steps)
+                   (assoc :executable "/bin/bash"
+                          :args scriptpath
+                          :status "Submitted"
+                          :output (script-output script-dir)
+                          :error (script-error script-dir)
+                          :log (script-log local-logs)))]))
