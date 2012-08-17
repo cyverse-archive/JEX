@@ -89,7 +89,8 @@
 
 (defn output-directory
   "Returns a string containing iRODS output directory based on settings
-   condor-map. Does not actually associate the value with :output_dir in condor-map."
+   condor-map. Does not actually associate the value with :output_dir in
+   condor-map."
   [condor-map]
   (let [output-dir    (:output_dir condor-map)
         create-subdir (:create_output_subdir condor-map)
@@ -326,6 +327,44 @@
   [condor-map]
   (assoc condor-map :steps (process-inputs condor-map)))
 
+(defn output-arguments
+  [user source dest]
+  (str "put --user " user
+       " --source " source
+       " --destination " (quote-value dest)))
+
+(defn output-id-str
+  [step-index output-index]
+  (str "condor-" step-index "-output-" output-index))
+
+(defn output-iterator-vec
+  [step-map]
+  (map vector (iterate inc 0) (get-in step-map [:config :output])))
+
+(defn process-step-outputs
+  [condor-map [step-idx step-map]]
+  (for [[output-idx output] (output-iterator-vec step-map)]
+    {:id              (output-id-str step-idx output-idx)
+     :type            "condor"
+     :status          "Submitted"
+     :submission_date (:submission_date condor-map)
+     :retain          (:retain output)
+     :multi           (:multiplicity output)
+     :environment     (filetool-env)
+     :executable      @filetool-path
+     :arguments       (output-arguments
+                       (:username condor-map)
+                       (:name output)
+                       (:output_dir condor-map))
+     :source          (:name output)
+     :dest            (:output_dir condor-map)}))
+
+(defn process-outputs
+  [condor-map]
+  (for [step-iter (step-iterator-vec condor-map)]
+    (assoc (last step-iter)
+      :output-jobs (process-step-outputs condor-map step-iter))))
+
 (defn output-jobs
   "Adds output job definitions to the incoming analysis map.
 
@@ -339,44 +378,21 @@
         :dest   String}
   "
   [condor-map]
-  (assoc condor-map 
-         :steps
-         (let [stepv (map vector (iterate inc 0) (:steps condor-map))] 
-           (for [[step-idx step] stepv]
-             (assoc step :output-jobs
-                    (let [config  (:config step)
-                          user    (:username condor-map)
-                          outputs (:output config)
-                          outputs-len (count outputs)]
-                      (let [outputv (map vector (iterate inc 0) outputs)] 
-                        (for [[output-idx output] outputv]
-                          (let [source      (:name output)]
-                            (let [dest (:output_dir condor-map)]
-                              {:id              (str "condor-" step-idx "-output-" output-idx)
-                               :type            "condor"
-                               :status          "Submitted"
-                               :submission_date (:submission_date condor-map)
-                               :retain          (:retain output)
-                               :multi           (:multiplicity output)
-                               :environment     (filetool-env)
-                               :executable      @filetool-path
-                               :arguments       (str "put --user " user " --source " source " --destination " (quote-value dest))
-                               :source          source
-                               :dest            dest}))))))))))
+  (assoc condor-map :steps (process-outputs condor-map)))
 
 (defn all-input-jobs
-  "Adds the :all-input-jobs key to condor-map. It's a list of all of the input jobs
-   in the submission, extracted from the :steps list."
+  "Adds the :all-input-jobs key to condor-map. It's a list of all of the input
+   jobs in the submission, extracted from the :steps list."
   [condor-map]
-  (assoc condor-map :all-input-jobs
-         (apply concat (map :input-jobs (:steps condor-map)))))
+  (assoc condor-map
+    :all-input-jobs (apply concat (map :input-jobs (:steps condor-map)))))
 
 (defn all-output-jobs 
-  "Adds the :all-output-jobs key to condor-map. It's a list of all of the output jobs
-   in the submission, extracted from the :steps list."
+  "Adds the :all-output-jobs key to condor-map. It's a list of all of the output
+   jobs in the submission, extracted from the :steps list."
   [condor-map]
-  (assoc condor-map :all-output-jobs
-         (apply concat (map :output-jobs (:steps condor-map)))))
+  (assoc condor-map
+    :all-output-jobs (apply concat (map :output-jobs (:steps condor-map)))))
 
 (defn- input-coll [jdef]
   "Examines an input job definition and returns the path to file or directory."
@@ -395,22 +411,21 @@
     (quote-value out-path)))
 
 (defn- output-coll
-  "Examines an output job definition and returns the path to the file or directory."
+  "Examines an output job definition and returns the path to the file or
+   directory."
   [jdef]
-  (let [multi (:multi jdef)
-        fpath (:source jdef)]
-    (if (= multi "collection") 
-      (make-abs-output (ut/add-trailing-slash fpath)) 
-      fpath)))
+  (if (= (:multi jdef) "collection") 
+    (make-abs-output (ut/add-trailing-slash (:source jdef))) 
+    (:source jdef)))
 
 (defn- parse-filter-files
   "Parses the filter-files configuration option into a list."
   []
-  (into [] (filter #(not (string/blank? %)) (string/split @filter-files #","))))
+  (filterv #(not (string/blank? %)) (string/split @filter-files #",")))
 
 (defn exclude-arg
-  "Formats the -exclude option for the filetool jobs based on the input and output
-   job definitions."
+  "Formats the -exclude option for the filetool jobs based on the input and
+   output job definitions."
   [inputs outputs]
   (log/info "exclude-arg")
   (log/info (str "COUNT INPUTS: " (count inputs)))
@@ -418,8 +433,9 @@
   (let [not-retain   (comp not :retain)
         input-paths  (map input-coll (filter not-retain inputs))
         output-paths (map output-coll (filter not-retain outputs))
-        all-paths    (flatten (conj input-paths output-paths (parse-filter-files)))]
-    (if (> (count all-paths) 0) 
+        all-paths    (flatten
+                      (conj input-paths output-paths (parse-filter-files)))]
+    (if (pos? (count all-paths)) 
       (str "--exclude " (string/join "," all-paths)) 
       "")))
 
@@ -434,7 +450,8 @@
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
-   :arguments (str "mkdir --user " username " --destination " (quote-value output-dir))})
+   :arguments (str "mkdir --user " username
+                   " --destination " (quote-value output-dir))})
 
 (defn shotgun-job-map
   "Formats a job definition for the output job that transfers
@@ -457,34 +474,36 @@
   "Associates the :final-output-job and :imkdir-job definitions
    with condor-map. Returns a new version of condor-map."
   [condor-map]
-  (let [output-dir   (:output_dir condor-map)
-        condor-log   (:condor-log-dir condor-map)
-        cinput-jobs  (:all-input-jobs condor-map)
-        coutput-jobs (:all-output-jobs condor-map)]
-    (log/info (str "COUNT ALL-INPUTS: " (count cinput-jobs)))
-    (log/info (str "COUNT ALL-OUTPUTS: " (count coutput-jobs)))
-    (assoc condor-map 
-           :final-output-job
-           (shotgun-job-map output-dir condor-log cinput-jobs coutput-jobs (:username condor-map))
-           
-           :imkdir-job
-           (imkdir-job-map output-dir condor-log (:username condor-map)))))
+  (assoc condor-map 
+    :final-output-job
+    (shotgun-job-map
+     (:output_dir condor-map)
+     (:condor-log-dir condor-map)
+     (:all-input-jobs condor-map)
+     (:all-output-jobs condor-map)
+     (:username condor-map))
+    
+    :imkdir-job
+    (imkdir-job-map
+     (:output_dir condor-map)
+     (:condor-log-dir condor-map)
+     (:username condor-map))))
 
 (defn rm-step-component
   "Removes the :component key-value pair from each step in condor-map.
    Returns a new version of condor-map."
   [condor-map]
-  (assoc condor-map :steps
-         (for [step (:steps condor-map)]
-           (dissoc step :component))))
+  (assoc condor-map
+    :steps (for [step (:steps condor-map)]
+             (dissoc step :component))))
 
 (defn rm-step-config
   "Removes the :config key-value pair from each step in condor-map.
    Returns a new version of condor-map."
   [condor-map]
-  (assoc condor-map :steps
-         (for [step (:steps condor-map)]
-           (dissoc step :config))))
+  (assoc condor-map
+    :steps (for [step (:steps condor-map)]
+             (dissoc step :config))))
 
 (defn transform
   "Transforms the condor-map that's passed in into something more useable."
