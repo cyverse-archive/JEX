@@ -37,27 +37,22 @@
    #(string? (:name %))
    #(sequential? (:steps %))
    #(every? true? 
-           (for [step (:steps %)]
-             (every? true?
-                     [(map? (:config step))
-                      (map? (:component step))
-                      (string? (:location (:component step)))
-                      (string? (:name (:component step)))])))])
+            (for [step (:steps %)]
+              (every? true?
+                      [(map? (:config step))
+                       (map? (:component step))
+                       (string? (:location (:component step)))
+                       (string? (:name (:component step)))])))])
 
 (defn validate-submission
   "Validates a submission."
   [submit-map]
   (valid? submit-map validators))
 
-(defn condor-submit
-  "Submits a job to Condor. sub-path should be the path to a Condor submission file."
-  [sub-path]
-  (let [env {"PATH" (get @props "jex.env.path")
-             "CONDOR_CONFIG" (get @props "jex.env.condor-config")}
-        shellout (partial sh/sh :env env)]
-    (sh/with-sh-env 
-      env
-      (sh/sh "condor_submit" sub-path))))
+(defn condor-env
+  []
+  {"PATH" (get @props "jex.env.path")
+   "CONDOR_CONFIG" (get @props "jex.env.condor-config")})
 
 (defn create-osm-record
   "Creates a new record in the OSM, associates the notification-url with it as a
@@ -72,35 +67,40 @@
 (defn condor-rm
   "Stops a condor job."
   [sub-id]
-  (let [env {"PATH" (get @props "jex.env.path")
-             "CONDOR_CONFIG" (get @props "jex.env.condor-config")}
-        shellout (partial sh/sh :env env)]
-    (sh/with-sh-env
-      env
-      (sh/sh "condor_rm" sub-id))))
+  (sh/with-sh-env (condor-env) (sh/sh "condor_rm" sub-id)))
+
+(defn osm-url [] (get @props "jex.osm.url"))
+(defn osm-coll [] (get @props "jex.osm.collection"))
+
+(defn extract-state-from-result
+  [result-map]
+  (-> result-map json/read-json :objects first :state))
+
+(defn query-for-analysis
+  [uuid]
+  (osm/query
+   (osm/create (osm-url) (osm-coll))
+   {:state.uuid uuid}))
 
 (defn stop-analysis
-  "Calls condor_rm on the submission id associated with the provided analysis id."
+  "Calls condor_rm on the submission id associated with the provided analysis
+   id."
   [uuid]
-  (let [osm-url    (get @props "jex.osm.url")
-        osm-coll   (get @props "jex.osm.collection")
-        osm-client (osm/create osm-url osm-coll)
-        sub-id (get-in 
-                 (first 
-                   (:objects
-                     (json/read-json 
-                       (osm/query osm-client {:state.uuid uuid})))) 
-                 [:state :sub_id])]
-    (if sub-id
-      (do 
-        (let [{:keys [exit out err]} (condor-rm sub-id)]
-          (when-not (= exit 0)
-            (throw+ {:error_code "ERR_FAILED_NON_ZERO" 
-                     :sub_id sub-id
-                     :out out
-                     :err err})))
-        {:condor-id sub-id})
-      (throw+ {:error_code "ERR_MISSING_CONDOR_ID" :uuid uuid}))))
+  (if-let [sub-id (:sub_id (query-for-analysis uuid))]
+    (let [{:keys [exit out err]} (condor-rm sub-id)]
+      (when-not (= exit 0)
+        (throw+ {:error_code "ERR_FAILED_NON_ZERO" 
+                 :sub_id sub-id
+                 :out out
+                 :err err}))
+      {:condor-id sub-id})))
+
+(defn param?
+  [param-map]
+  (and
+   (contains? param-map :name)
+   (contains? param-map :value)
+   (contains? param-map :order)))
 
 (defn cmdline-preview
   "Accepts a map in the following format:
@@ -113,54 +113,82 @@
    Returns a map in the format:
    {:params \"-t foo\"}"
   [param-obj]
-  (let [param? #(and (contains? %1 :name)
-                     (contains? %1 :value)
-                     (contains? %1 :order))] 
-    (when-not (contains? param-obj :params)
-      (throw+ {:error_code "ERR_INVALID_JSON"
-               :message "Missing params key."}))
-    
-    (when-not (every? true? (map param? (:params param-obj)))
-      (throw+ {:error_code "ERR_INVALID_JSON"
-               :message "All objects must have 'name', 'value', and 'order' keys."})))
+  (when-not (contains? param-obj :params)
+    (throw+ {:error_code "ERR_INVALID_JSON"
+             :message "Missing params key."}))
+  
+  (when-not (every? true? (map param? (:params param-obj)))
+    (throw+ {:error_code "ERR_INVALID_JSON"
+             :message "Objects must have 'name', 'value', and 'order' keys."}))
   
   (hash-map :params (ix/escape-params (ix/param-maps (:params param-obj)))))
+
+(defn log-submit-results
+  [{:keys [exit out err]}]
+  (log/warn (str "Exit code of condor-submit: " exit))
+  (log/info (str "condor-submit-dag stdout:"))
+  (log/info out)
+  (log/info (str "condor-submit-dag stderr:"))
+  (log/info err))
+
+(defn parse-sub-id
+  [cout]
+  (last (re-find #"\d+ job\(s\) submitted to cluster (\d+)\." cout)))
+
+(defn submission-id
+  [{:keys [out]}]
+  (let [sub-id (parse-sub-id out)]
+    (log/warn (str "Grabbed dag_id: " sub-id))
+    sub-id))
+
+(defn xform-map-for-osm
+  [updated-map sub-id]
+  (ox/transform (assoc updated-map :sub_id sub-id)))
+
+(defn push-failed-submit-to-osm
+  [output-map]
+  (let [osm-client (osm/create (osm-url) (osm-coll))
+        doc-id     (create-osm-record osm-client)]
+    (osm/update-object osm-client doc-id (assoc output-map :status "Failed"))
+    doc-id))
+
+(defn push-successful-submit-to-osm
+  [output-map]
+  (let [osm-client (osm/create (osm-url) (osm-coll))
+        doc-id     (create-osm-record osm-client)]
+    (osm/update-object osm-client doc-id output-map)
+    doc-id))
+
+(defn push-submission-info-to-osm
+  [output-map {:keys [exit]}]
+  (if (not= exit 0)
+    (push-failed-submit-to-osm output-map)
+    (push-successful-submit-to-osm output-map)))
+
+(defn generate-submission
+  [submit-map]
+  (let [result (-> submit-map ix/transform dagify/dagify)]
+    (log/info "Output map:")
+    (log/info (json/json-str (last result)))
+    result))
+
+(defn condor-submit
+  "Submits a job to Condor. sub-path should be the path to a Condor submission
+   file."
+  [sub-path]
+  (let [result (sh/with-sh-env (condor-env) (sh/sh "condor_submit" sub-path))]
+    (log-submit-results result)
+    result))
 
 (defn submit
   "Applies the incoming tranformations to the submitted request, submits the
    job to the Condor cluster, applies outgoing transformations, and dumps the
    resulting map to the OSM."
   [submit-map]
-  (let [osm-url    (get @props "jex.osm.url")
-        osm-coll   (get @props "jex.osm.collection")
-        notif-url  (get @props "jex.osm.notification-url")
-        [sub-path updated-map] (-> submit-map ix/transform dagify/dagify)
-        {cexit :exit cout :out cerr :err} (condor-submit sub-path)
-        sub-id     (last (re-find #"\d+ job\(s\) submitted to cluster (\d+)\." cout))
-        output-map (ox/transform (assoc updated-map :sub_id sub-id))
-        osm-client (osm/create osm-url osm-coll)
-        doc-id     (create-osm-record osm-client)]
-    
-    (log/warn (str "Exit code of condor-submit: " cexit))
-    (log/info (str "condor-submit-dag stdout:"))
-    (log/info cout)
-    (log/info (str "condor-submit-dag stderr:"))
-    (log/info cerr)
-    (log/info "Output map:")
-    (log/info (json/json-str output-map))
-    (log/warn (str "Grabbed dag_id: " sub-id))
-    
-    ;Update the OSM doc with dag info, triggering notification.
-    (if (not= cexit 0)
-      (log/warn 
-        (osm/update-object 
-          osm-client 
-          doc-id
-          (assoc output-map :status "Failed"))) 
-      (log/warn 
-        (osm/update-object 
-          osm-client 
-          doc-id 
-          output-map)))
-    
-    [cexit sub-id doc-id]))
+  (let [[sub-path updated-map] (generate-submission submit-map) 
+        sub-result (condor-submit sub-path)
+        sub-id     (submission-id sub-result)
+        doc-id     (push-submission-info-to-osm
+                    (xform-map-for-osm updated-map sub-id)
+                    sub-result)]
+    [(:exit sub-result) sub-id doc-id]))

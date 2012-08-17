@@ -85,13 +85,67 @@
      "rm -r " job-dir "\n"
      "exit $EXITSTATUS\n")))
 
+(defn create-submission-directory
+  [{script-dir :working_dir :as analysis-map}]
+  (let [dag-log-dir (ut/path-join script-dir "logs")]                     
+    (log/info (str "Creating submission directories: " dag-log-dir))
+    (if-not (.mkdirs (File. dag-log-dir))
+      (log/warn (str "Failed to create directory: " dag-log-dir)))
+    analysis-map))
+
+(defn local-log-dir
+  [{condor-log :condor-log-dir}]
+  (ut/path-join condor-log "logs"))
+
+(defn create-local-log-directory
+  [analysis-map]
+  (let [local-logs (local-log-dir analysis-map)]
+    (log/info (str "Creating the local log directory: " local-logs))
+    (if-not (.mkdirs (File. local-logs))
+      (log/warn (str "Failed to create directory " local-logs)))
+    analysis-map))
+
+(defn scriptpath
+  [analysis-map]
+  (ut/path-join (:working_dir analysis-map) "logs" "iplant.sh"))
+
+(defn script-command-file
+  [analysis-map]
+  (ut/path-join (:working_dir analysis-map) "logs" "iplant.cmd"))
+
+(defn generate-script-submission
+  [analysis-map]
+  (spit (scriptpath analysis-map) (script analysis-map))
+    
+  (spit
+   (script-command-file analysis-map)
+   (script-submission
+    (:username analysis-map)
+    (:uuid analysis-map)
+    (:working_dir analysis-map)
+    (scriptpath analysis-map)
+    (local-log-dir analysis-map)))
+  analysis-map)
+
+(defn cleanup-analysis-map
+  [analysis-map]
+  (-> analysis-map
+      (dissoc :steps)
+      (assoc :executable "/bin/bash"
+             :args (scriptpath analysis-map)
+             :status "Submitted"
+             :output (script-output (:working_dir analysis-map))
+             :error (script-error (:working_dir analysis-map))
+             :log (local-log-dir analysis-map))))
+
 (defn dagify
-  "Takes in analysis map that's been processed by (jex.incoming-xforms/transform)
+  "Takes in analysis map that's been processed by
+   (jex.incoming-xforms/transform)
    and puts together the stuff needed to submit the job to the Condor cluster.
    That includes:
 
-   * Creating a place on the NFS mount point where the script and the Condor logs
-     will be written to out on the Condor cluster.
+   * Creating a place on the NFS mount point where the script and the Condor
+     logs will be written to out on the Condor cluster.
 
    * Creating the local log directory (where Condor logs job stuff to on the
      submission node).
@@ -106,48 +160,9 @@
    Returns a vector containing two entries, the path to the Condor submission
    file and the new version of the analysis-map."
   [analysis-map]
-  (let [script-dir  (:working_dir analysis-map)
-        dag-log-dir (ut/path-join script-dir "logs")
-        output-dir  (:output_dir analysis-map)
-        condor-log  (:condor-log-dir analysis-map)
-        uuid        (:uuid analysis-map)
-        username    (:username analysis-map)
-        run-on-nfs  (:run-on-nfs analysis-map)
-        scriptname  "iplant.sh"
-        scriptpath  (ut/path-join script-dir "logs" scriptname)
-        scriptsub   (ut/path-join script-dir "logs" "iplant.cmd")
-        local-logs  (ut/path-join condor-log "logs")]
-    
-    ;Create the directory the script and log files will go into.
-    (log/info (str "Creating submission directories: " dag-log-dir))
-    (if-not (.mkdirs (File. dag-log-dir))
-      (log/warn (str "Failed to create directory: " dag-log-dir)))
-    
-    ;Create the local log directory.
-    (log/info (str "Creating the local log directory: " local-logs))
-    (if-not (.mkdirs (File. local-logs))
-      (log/warn (str "Failed to create directory " local-logs)))
-    
-    ;Write out the script
-    (spit scriptpath (script analysis-map))
-    
-    ;Write out the script submission
-    (spit
-     scriptsub
-     (script-submission
-      username
-      uuid
-      script-dir
-      scriptpath
-      local-logs))
-    
-    ;Dissoc all of the other steps, they're not needed any more. 
-    ;Assoc the new dummy script and generated script.
-    [scriptsub (-> analysis-map
-                   (dissoc :steps)
-                   (assoc :executable "/bin/bash"
-                          :args scriptpath
-                          :status "Submitted"
-                          :output (script-output script-dir)
-                          :error (script-error script-dir)
-                          :log (script-log local-logs)))]))
+  (-> analysis-map
+      (create-submission-directory)
+      (create-local-log-directory)
+      (generate-script-submission))
+  [(script-command-file analysis-map)
+   (cleanup-analysis-map analysis-map)])
