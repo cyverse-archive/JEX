@@ -1,6 +1,5 @@
 (ns jex.incoming-xforms
   (:require [clojure.string :as string]
-            [jex.argescape :as ae]
             [clojure.tools.logging :as log]
             [clojure-commons.file-utils :as ut]))
 
