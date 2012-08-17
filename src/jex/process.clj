@@ -59,8 +59,8 @@
    callback, and returns the OSM document ID in a string."
   [osm-client]
   (let [notif-url (get @props "jex.osm.notification-url")
-        doc-id (osm/save-object osm-client {})
-        result (osm/add-callback osm-client doc-id "on_update" notif-url)]
+        doc-id    (osm/save-object osm-client {})
+        result    (osm/add-callback osm-client doc-id "on_update" notif-url)]
     (log/warn result)
     doc-id))
 
