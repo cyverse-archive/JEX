@@ -13,6 +13,8 @@
                :dependencies ["iplant-service-config >= 0.1.0-5"],
                :config-files ["log4j.properties"],
                :config-path "conf"}
+  :profiles {:dev {:dependencies [[midje "1.4.0"]
+                                  [lein-midje "2.0.0-SNAPSHOT"]]}}
   :aot [jex.core]
   :main jex.core
   :min-lein-version "2.0.0"
