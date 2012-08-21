@@ -28,7 +28,7 @@
    (partial replacer #"\s"))
 
 (def space-underscore 
-  "Replaces _. [replace-str str-to-modify" 
+  "Replaces spaces with underscores. [str-to-modify]" 
    (partial replace-space "_"))
 
 (def now-fmt 
@@ -76,15 +76,16 @@
 (defn analysis-attrs
   "Adds some basic top-level keys to condor-map that are needed for subsequent
    tranformations."
-  [condor-map]
-  (assoc 
-    condor-map
-    :run-on-nfs @run-on-nfs
-    :type (or (:type condor-map) "analysis")
-    :username (pathize (:username condor-map))
-    :nfs_base @nfs-base
-    :irods_base @irods-base
-    :submission_date (.getTime (date))))
+  ([condor-map]
+     (analysis-attrs condor-map date))
+  ([condor-map date-func]
+     (assoc condor-map
+       :run-on-nfs @run-on-nfs
+       :type (or (:type condor-map) "analysis")
+       :username (pathize (:username condor-map))
+       :nfs_base @nfs-base
+       :irods_base @irods-base
+       :submission_date (.getTime (date-func)))))
 
 (defn output-directory
   "Returns a string containing iRODS output directory based on settings
@@ -138,8 +139,11 @@
         analysis-dir (analysis-dirname
                       (pathize (:name condor-map))
                       (:now_date condor-map))
-        log-dir-path (ut/path-join @condor-log-path username analysis-dir)
-        log-dir      (ut/add-trailing-slash log-dir-path)
+        log-dir (ut/add-trailing-slash
+                      (ut/path-join
+                       @condor-log-path
+                       username
+                       analysis-dir))
         output-dir   (output-directory condor-map)
         working-dir  (ut/add-trailing-slash
                       (ut/path-join nfs-base username analysis-dir))]
