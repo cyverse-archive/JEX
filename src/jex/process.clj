@@ -69,14 +69,23 @@
   [sub-id]
   (sh/with-sh-env (condor-env) (sh/sh "condor_rm" sub-id)))
 
-(defn osm-url [] (get @props "jex.osm.url"))
-(defn osm-coll [] (get @props "jex.osm.collection"))
+(defn osm-url
+  "Returns the OSM URL."
+  []
+  (get @props "jex.osm.url"))
+
+(defn osm-coll
+  "Returns the collection in the OSM that the JEX should use."
+  []
+  (get @props "jex.osm.collection"))
 
 (defn extract-state-from-result
+  "Extracts the state from the JSON returned by the OSM."
   [result-map]
   (-> result-map json/read-json :objects first :state))
 
 (defn query-for-analysis
+  "Queries the OSM for the document representing a particular analysis."
   [uuid]
   (osm/query
    (osm/create (osm-url) (osm-coll))
@@ -96,6 +105,7 @@
       {:condor-id sub-id})))
 
 (defn param?
+  "Returns true of the object passed in is actually a param."
   [param-map]
   (and
    (contains? param-map :name)
@@ -124,6 +134,7 @@
   (hash-map :params (ix/escape-params (ix/param-maps (:params param-obj)))))
 
 (defn log-submit-results
+  "Logs the result of the call to condor_submit."
   [{:keys [exit out err]}]
   (log/warn (str "Exit code of condor-submit: " exit))
   (log/info (str "condor-submit-dag stdout:"))
@@ -132,20 +143,25 @@
   (log/info err))
 
 (defn parse-sub-id
+  "Parses out the submission id from the output of the condor_submit."
   [cout]
   (last (re-find #"\d+ job\(s\) submitted to cluster (\d+)\." cout)))
 
 (defn submission-id
+  "Grabs the submission id from the output using (parse-sub-id), logs it, and
+   returns it."
   [{:keys [out]}]
   (let [sub-id (parse-sub-id out)]
     (log/warn (str "Grabbed dag_id: " sub-id))
     sub-id))
 
 (defn xform-map-for-osm
+  "Transforms the analysis map so it's usable by panopticon."
   [updated-map sub-id]
   (ox/transform (assoc updated-map :sub_id sub-id)))
 
 (defn push-failed-submit-to-osm
+  "Pushes out the analysis map to OSM after marking it as Failed."
   [output-map]
   (let [osm-client (osm/create (osm-url) (osm-coll))
         doc-id     (create-osm-record osm-client)]
@@ -153,6 +169,8 @@
     doc-id))
 
 (defn push-successful-submit-to-osm
+  "Pushes out the analysis map to the OSM. It's marked as Submitted at this
+   point."
   [output-map]
   (let [osm-client (osm/create (osm-url) (osm-coll))
         doc-id     (create-osm-record osm-client)]
@@ -160,12 +178,16 @@
     doc-id))
 
 (defn push-submission-info-to-osm
+  "Decides whether to push the analysis map to the OSM based on the exit
+   code of the condor_submit call."
   [output-map {:keys [exit]}]
   (if (not= exit 0)
     (push-failed-submit-to-osm output-map)
     (push-successful-submit-to-osm output-map)))
 
 (defn generate-submission
+  "Takes in the analysis map, transforms it for script generation, creates the
+   iplant.sh and iplant.cmd. Returns the modified analysis map."
   [submit-map]
   (let [result (-> submit-map ix/transform dagify/dagify)]
     (log/info "Output map:")

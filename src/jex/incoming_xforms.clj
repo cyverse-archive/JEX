@@ -192,50 +192,79 @@
       (seq env-map))))
 
 (defn executable
+  "Takes in a step map and returns the executable path. This will be the full
+   path to the executable since they're the same across all of the Condor
+   nodes."
   [step-map]
   (ut/path-join
    (get-in step-map [:component :location])
    (get-in step-map [:component :name])))
 
 (defn arguments
+  "Takes in a step map map and returns the formatted arguments
+   for that step in the analysis."
   [step-map]
   (-> (get-in step-map [:config :params]) param-maps escape-params))
 
 (defn stdin
+  "Returns the path to the stdin file or nil if there isn't one. This should
+   be relative to the current working directory since it's used out on the
+   Condor cluster."
   [step-map]
   (if (contains? step-map :stdin)
     (quote-value (:stdin step-map))
     nil))
 
 (defn stdout
+  "Returns the path to the stdout file or nil if there isn't one. This should
+   be relative to the current working directory since it's used out on the
+   Condor cluster."
   [step-map index]
   (if (contains? step-map :stdout)
     (quote-value (:stdout step-map))
     (str "logs/" "condor-stdout-" index)))
 
 (defn stderr
+  "Returns the path to the stderr file or nil if there isn't one. This should
+   be relative to the current working directory since it's used out on the
+   Condor cluster."
   [step-map index]
   (if (contains? step-map :stderr)
     (quote-value (:stderr step-map))
     (str "logs/" "condor-stderr-" index)))
 
 (defn environment
+  "Returns the environment variables as a bash-compatible string. Used to set
+   the environment variables for each individual step in the analysis. Should
+   prevent any of the environment variables from leaking over to another step
+   in the analysis. "
   [step-map]
   (if (contains? step-map :environment)
     (format-env-variables (:environment step-map))
     nil))
 
 (defn log-file
+  "Returns the path to the condor log files. It's relative to the current
+   working directory since they're generated out on the Condor cluster."
   [step-map index condor-log]
   (if (contains? step-map :log-file)
     (ut/path-join condor-log (:log-file step-map))
     (ut/path-join condor-log "logs" (str "condor-log-" index))))
 
 (defn step-iterator-vec
+  "Returns a vector of vectors that look like the following:
+
+   [[0 {:this \"is a step\"}]]
+
+   The integer is the step index in the list of steps and the map is the actual
+   step map that corresponds to the index in the list of steps in the analysis."
   [condor-map]
   (map vector (iterate inc 0) (:steps condor-map)))
 
 (defn process-steps
+  "Iterates over the steps in the analysis and morphs them into something
+   that can be used to generate a shell script. The result will be a sequence
+   of transformed step maps."
   [condor-map]
   (for [[step-idx step] (step-iterator-vec condor-map)]
     (assoc step 
@@ -251,7 +280,8 @@
       :log-file (log-file step step-idx (:condor-log-dir condor-map)))))
 
 (defn steps
-  "Processes the steps in a map into a saner format."
+  "Processes the steps in a map into a saner format. Returns a new version
+   of condor-map with the steps modified to be easier to use."
   [condor-map]
   (assoc condor-map :steps (process-steps condor-map)))
 
@@ -264,18 +294,28 @@
     source-path))
 
 (defn input-id-str
+  "Takes in the step index and input index and returns the input job
+   identifier. The identifier is used to put together filenames for logs
+   associated with the input job in question."
   [step-index input-index]
   (str "condor-" step-index "-input-" input-index))
 
 (defn input-stdout
+  "Takes in the step index and the input index and returns the path to the
+   stdout file for an input job. This should always end up being a relative path
+   since the stdout file is created out on the Condor cluster."
   [step-index input-index]
   (str "logs/" (input-id-str step-index input-index) "-stdout"))
 
 (defn input-stderr
+  "Takes in the step index and the input index and returns the path to the
+   stderr file for an input job. This should always end up being a relative path
+   since the stderr file is created out on the Condor cluster."
   [step-index input-index]
   (str "logs/" (input-id-str step-index input-index) "-stderr"))
 
 (defn input-log-file
+  "Pieces together the path to the condor log file."
   [condor-log step-index input-index]
   (ut/path-join
    condor-log
@@ -283,16 +323,28 @@
    (str (input-id-str step-index input-index) "-log")))
 
 (defn input-arguments
+  "Formats the arguments to porklock for an input job."
   [user source input-map]
   (str "get --user " user
        " --source " (quote-value
                      (handle-source-path source (:multiplicity input-map)))))
 
 (defn input-iterator-vec
+  "Returns a vector of vectors that make iterating over the input jobs in a
+   step easier to handle. The return value looks like this:
+
+   [[0 {:input :map}]]
+
+   The integer is the index into the input list in the config object of each
+   step. The map is the entry in the input list that corresponds with the
+   index."
   [step-map]
   (map vector (iterate inc 0) (get-in step-map [:config :input])))
 
 (defn process-step-inputs
+  "Iterators over the input jobs for a step in the analysis and transforms them
+   into a new map that can be more easily used to create bash scripts. Returns
+   a seq of transformed input maps."
   [condor-map [step-idx step-map]]
   (for [[input-idx input] (input-iterator-vec step-map)]
     {:id              (input-id-str step-idx input-idx)
@@ -316,31 +368,49 @@
                        input-idx)}))
 
 (defn process-inputs
+  "Iterates over the steps in the analysis map and then over the inputs for
+   each step and transforms each input map into something easier to use.
+   Returns a seq of transformed steps."
   [condor-map]
   (for [step-iter (step-iterator-vec condor-map)]
     (assoc (last step-iter)
       :input-jobs (process-step-inputs condor-map step-iter))))
 
 (defn input-jobs
-  "Adds output job definitions to the incoming analysis map."
+  "Adds input job definitions to the incoming analysis map."
   [condor-map]
   (assoc condor-map :steps (process-inputs condor-map)))
 
 (defn output-arguments
+  "Formats the porklock arguments for output jobs."
   [user source dest]
   (str "put --user " user
        " --source " source
        " --destination " (quote-value dest)))
 
 (defn output-id-str
+  "Generates an identifier for output jobs based on the step index and the
+   output job index. This is used to generate filenames for logs associated
+   with output jobs."
   [step-index output-index]
   (str "condor-" step-index "-output-" output-index))
 
 (defn output-iterator-vec
+  "Returns a vector of vectors that make iterating over the output jobs in a
+   step easier to handle. The return value looks like this:
+
+   [[0 {:input :map}]]
+
+   The integer is the index into the output list in the config object of each
+   step. The map is the entry in the output list that corresponds with the
+   index."
   [step-map]
   (map vector (iterate inc 0) (get-in step-map [:config :output])))
 
 (defn process-step-outputs
+  "Iterates over the outputs associated with a step and transforms them into
+   something we can use to generate a bash script. Returns a list of modified
+   output maps."
   [condor-map [step-idx step-map]]
   (for [[output-idx output] (output-iterator-vec step-map)]
     {:id              (output-id-str step-idx output-idx)
@@ -359,6 +429,9 @@
      :dest            (:output_dir condor-map)}))
 
 (defn process-outputs
+  "Iterates over the output-jobs associated with each step, modifies them via
+   (process-step-outputs) and associates them with the key :output-jobs in each
+   map."
   [condor-map]
   (for [step-iter (step-iterator-vec condor-map)]
     (assoc (last step-iter)

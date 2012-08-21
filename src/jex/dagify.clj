@@ -86,6 +86,8 @@
      "exit $EXITSTATUS\n")))
 
 (defn create-submission-directory
+  "Creates the local directory where the iplant.sh and iplant.cmd files get
+   written out to."
   [{script-dir :working_dir :as analysis-map}]
   (let [dag-log-dir (ut/path-join script-dir "logs")]                     
     (log/info (str "Creating submission directories: " dag-log-dir))
@@ -94,10 +96,12 @@
     analysis-map))
 
 (defn local-log-dir
+  "Create the path to the local directory containing the condor logs."
   [{condor-log :condor-log-dir}]
   (ut/path-join condor-log "logs"))
 
 (defn create-local-log-directory
+  "Actually creates the local directory containing the condor logs."
   [analysis-map]
   (let [local-logs (local-log-dir analysis-map)]
     (log/info (str "Creating the local log directory: " local-logs))
@@ -106,14 +110,17 @@
     analysis-map))
 
 (defn scriptpath
+  "Generates the path to the iplant.sh file."
   [analysis-map]
   (ut/path-join (:working_dir analysis-map) "logs" "iplant.sh"))
 
 (defn script-command-file
+  "Generates the path to the iplant.cmd file."
   [analysis-map]
   (ut/path-join (:working_dir analysis-map) "logs" "iplant.cmd"))
 
 (defn generate-script-submission
+  "Generates and writes out the iplant.sh and iplant.cmd files."
   [analysis-map]
   (spit (scriptpath analysis-map) (script analysis-map))
     
@@ -128,6 +135,7 @@
   analysis-map)
 
 (defn cleanup-analysis-map
+  "Cleans up the analysis map."
   [analysis-map]
   (-> analysis-map
       (dissoc :steps)
