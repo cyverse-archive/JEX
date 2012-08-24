@@ -138,16 +138,16 @@
    "/tmp/condor-log-path/wregglej/context-dirs-map-1969-12-31-17-00-00.000/"}))
 
 (def p
-  [{:name "n0" :value "v0" :order "0" :foo "bar"}
-   {:name "n1" :value "v1" :order "1" :bar "a"}
-   {:name "n2" :value "v2" :order "2" :bees "no!"}
-   {:name "n3" :value "v3" :order "3" :bears "oh my"}])
+  [{:name "-n0" :value "v0" :order "0" :foo "bar"}
+   {:name "-n1" :value "v1" :order "1" :bar "a"}
+   {:name "-n2" :value "v2" :order "2" :bees "no!"}
+   {:name "-n3" :value "v3" :order "3" :bears "oh my"}])
 
 (fact
- (param-maps p) => [{:name "n0" :value "v0" :order "0"}
-                    {:name "n1" :value "v1" :order "1"}
-                    {:name "n2" :value "v2" :order "2"}
-                    {:name "n3" :value "v3" :order "3"}])
+ (param-maps p) => [{:name "-n0" :value "v0" :order "0"}
+                    {:name "-n1" :value "v1" :order "1"}
+                    {:name "-n2" :value "v2" :order "2"}
+                    {:name "-n3" :value "v3" :order "3"}])
 
 (fact
  (naively-quote "foo 'bar' baz") => "'foo '\\''bar'\\'' baz'"
@@ -156,3 +156,105 @@
 (fact
  (quote-value "foo 'bar' baz") => "'foo '\\''bar'\\'' baz'"
  (quote-value "''foo''") => "\\'''\\''foo'\\'''\\'")
+
+(def fancy-params
+  [{:name "-n1" :value "foo 'bar' baz" :order 5}
+   {:name "-n2" :value "''foo''" :order 4}
+   {:name "-n3" :value "nargle" :order 3}])
+
+(fact
+ (escape-params fancy-params) =>
+ "-n3 'nargle' -n2 \\'''\\''foo'\\'''\\' -n1 'foo '\\''bar'\\'' baz'")
+
+(fact
+ (format-env-variables {:foo "bar" :baz "blippy"}) =>
+ "foo=\"bar\" baz=\"blippy\"")
+
+(def step-map
+  {:component
+   {:location "/usr/local/bin/"
+    :name "footastic"}
+   :config
+   {:params p}
+   :stdin "/test/stdin"
+   :stdout "/test/stdout"
+   :stderr "/test/stderr"
+   :environment {:foo "bar" :baz "blippy"}})
+
+(fact
+ (executable step-map) => "/usr/local/bin/footastic")
+
+(fact
+ (arguments step-map) => "-n0 'v0' -n1 'v1' -n2 'v2' -n3 'v3'")
+
+(fact
+ (stdin step-map) => "'/test/stdin'")
+
+(fact
+ (stdout step-map 0) => "'/test/stdout'")
+
+(fact
+ (stderr step-map 0) => "'/test/stderr'")
+
+(fact
+ (environment step-map) => "foo=\"bar\" baz=\"blippy\"")
+
+(fact
+ (log-file {:log-file "log-file"} 0 "/tmp/logs") => "/tmp/logs/log-file"
+ (log-file {} 0 "/tmp/logs") => "/tmp/logs/logs/condor-log-0")
+
+(fact
+ (step-iterator-vec {:steps [{} {} {}]}) => [[0 {}] [1 {}] [2 {}]])
+
+(def step-map1
+  {:component
+   {:location "/usr/local/bin"
+    :name "footastic1"}
+   :config {:params p}
+   :stdin "/test/stdin1"
+   :stdout "/test/stdout1"
+   :stderr "/test/stderr1"
+   :environment {:PATH "/usr/local/bin"}
+   :log-file "log-file1"})
+
+(def condor-map
+  {:steps [step-map step-map1]
+   :submission_date 0
+   :condor-log-dir "/tmp"})
+
+(fact
+ (process-steps condor-map) =>
+ (sequence
+  [
+   {:id "condor-0"
+    :type "condor"
+    :submission_date 0
+    :status "Submitted"
+    :environment "foo=\"bar\" baz=\"blippy\""
+    :executable "/usr/local/bin/footastic"
+    :arguments "-n0 'v0' -n1 'v1' -n2 'v2' -n3 'v3'"
+    :stdout "'/test/stdout'"
+    :stderr "'/test/stderr'"
+    :stdin "/test/stdin"
+    :log-file "/tmp/logs/condor-log-0"
+    :component
+    {:location "/usr/local/bin/"
+     :name "footastic"}
+    :config
+    {:params p}}
+   {:id "condor-1"
+    :type "condor"
+    :submission_date 0
+    :status "Submitted"
+    :environment "PATH=\"/usr/local/bin\""
+    :executable "/usr/local/bin/footastic1"
+    :arguments "-n0 'v0' -n1 'v1' -n2 'v2' -n3 'v3'"
+    :stdout "'/test/stdout1'"
+    :stderr "'/test/stderr1'"
+    :stdin "/test/stdin1"
+    :log-file "/tmp/log-file1"
+    :component
+    {:location "/usr/local/bin"
+     :name "footastic1"}
+    :config {:params p}}]))
+

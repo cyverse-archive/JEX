@@ -248,8 +248,7 @@
     nil))
 
 (defn log-file
-  "Returns the path to the condor log files. It's relative to the current
-   working directory since they're generated out on the Condor cluster."
+  "Returns the path to the condor log files."
   [step-map index condor-log]
   (if (contains? step-map :log-file)
     (ut/path-join condor-log (:log-file step-map))
@@ -263,7 +262,7 @@
    The integer is the step index in the list of steps and the map is the actual
    step map that corresponds to the index in the list of steps in the analysis."
   [condor-map]
-  (map vector (iterate inc 0) (:steps condor-map)))
+  (mapv vector (iterate inc 0) (:steps condor-map)))
 
 (defn process-steps
   "Iterates over the steps in the analysis and morphs them into something
