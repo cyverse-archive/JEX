@@ -148,3 +148,11 @@
                     {:name "n1" :value "v1" :order "1"}
                     {:name "n2" :value "v2" :order "2"}
                     {:name "n3" :value "v3" :order "3"}])
+
+(fact
+ (naively-quote "foo 'bar' baz") => "'foo '\\''bar'\\'' baz'"
+ (naively-quote "''foo''") => "''\\'''\\''foo'\\'''\\'''")
+
+(fact
+ (quote-value "foo 'bar' baz") => "'foo '\\''bar'\\'' baz'"
+ (quote-value "''foo''") => "\\'''\\''foo'\\'''\\'")
