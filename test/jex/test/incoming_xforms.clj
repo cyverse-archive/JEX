@@ -391,3 +391,85 @@
          :stderr "logs/condor-0-input-1-stderr"
          :log-file "/tmp/logs/condor-0-input-1-log"}]))
 
+(fact
+ (process-inputs input-condor-map) =>
+ (sequence
+  [{:input-jobs
+    (sequence
+     [{:id "condor-0-input-0"
+       :submission_date 0
+       :type "condor"
+       :status "Submitted"
+       :retain true
+       :multi "collection"
+       :source "/tmp/source"
+       :executable "/usr/local/bin/filetool"
+       :environment "PATH=/usr/local/bin"
+       :arguments "get --user foo --source '/tmp/source/'"
+       :stdout "logs/condor-0-input-0-stdout"
+       :stderr "logs/condor-0-input-0-stderr"
+       :log-file "/tmp/logs/condor-0-input-0-log"}
+      {:id "condor-0-input-1"
+       :submission_date 0
+       :type "condor"
+       :status "Submitted"
+       :retain false
+       :multi "single"
+       :source "/tmp/source1"
+       :executable "/usr/local/bin/filetool"
+       :environment "PATH=/usr/local/bin"
+       :arguments "get --user foo --source '/tmp/source1'"
+       :stdout "logs/condor-0-input-1-stdout"
+       :stderr "logs/condor-0-input-1-stderr"
+       :log-file "/tmp/logs/condor-0-input-1-log"}])
+    :config
+    {:input
+     [{:retain true
+       :multiplicity "collection"
+       :value "/tmp/source"}
+      {:retain false
+       :multiplicity "single"
+       :value "/tmp/source1"}]}}]))
+
+(fact
+ (input-jobs input-condor-map) =>
+ {:submission_date 0
+  :username "foo"
+  :condor-log-dir "/tmp"
+  :steps
+  [{:input-jobs
+    (sequence
+     [{:id "condor-0-input-0"
+       :submission_date 0
+       :type "condor"
+       :status "Submitted"
+       :retain true
+       :multi "collection"
+       :source "/tmp/source"
+       :executable "/usr/local/bin/filetool"
+       :environment "PATH=/usr/local/bin"
+       :arguments "get --user foo --source '/tmp/source/'"
+       :stdout "logs/condor-0-input-0-stdout"
+       :stderr "logs/condor-0-input-0-stderr"
+       :log-file "/tmp/logs/condor-0-input-0-log"}
+      {:id "condor-0-input-1"
+       :submission_date 0
+       :type "condor"
+       :status "Submitted"
+       :retain false
+       :multi "single"
+       :source "/tmp/source1"
+       :executable "/usr/local/bin/filetool"
+       :environment "PATH=/usr/local/bin"
+       :arguments "get --user foo --source '/tmp/source1'"
+       :stdout "logs/condor-0-input-1-stdout"
+       :stderr "logs/condor-0-input-1-stderr"
+       :log-file "/tmp/logs/condor-0-input-1-log"}])
+    :config
+    {:input
+     [{:retain true
+       :multiplicity "collection"
+       :value "/tmp/source"}
+      {:retain false
+       :multiplicity "single"
+       :value "/tmp/source1"}]}}]})
