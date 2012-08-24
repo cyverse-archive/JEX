@@ -610,3 +610,50 @@
                :environment "PATH=/usr/local/bin"
                :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir'"
                :dest "/tmp/output-dir"}])}])}))
+
+(fact
+ (all-input-jobs
+  {:steps
+   [{:input-jobs
+     [{:job 1} {:job 2} {:job 3}]}
+    {:input-jobs
+     [{:job 4} {:job 5} {:job 6}]}]}) =>
+     {:steps
+      [{:input-jobs
+        [{:job 1} {:job 2} {:job 3}]}
+       {:input-jobs
+        [{:job 4} {:job 5} {:job 6}]}]
+      :all-input-jobs [{:job 1} {:job 2} {:job 3} {:job 4} {:job 5} {:job 6}]})
+
+(fact
+ (all-output-jobs
+  {:steps
+   [{:output-jobs
+     [{:job 1} {:job 2} {:job 3}]}
+    {:output-jobs
+     [{:job 4} {:job 5} {:job 6}]}]}) =>
+     {:steps
+      [{:output-jobs
+        [{:job 1} {:job 2} {:job 3}]}
+       {:output-jobs
+        [{:job 4} {:job 5} {:job 6}]}]
+      :all-output-jobs [{:job 1} {:job 2} {:job 3} {:job 4} {:job 5} {:job 6}]})
+
+(fact
+ (input-coll {:multi "collection" :source "/tmp/source"}) => "'source/'"
+ (input-coll {:multi "single" :source "/tmp/source"}) => "'source'")
+
+(fact
+ (make-abs-output "foo/bar") => "$(pwd)/'foo/bar'"
+ (make-abs-output "/foo/bar") => "'/foo/bar'")
+
+(fact
+ (output-coll {:multi "collection" :source "/tmp/source"}) => "'/tmp/source/'"
+ (output-coll {:multi "collection" :source "source"}) => "$(pwd)/'source/'"
+ (output-coll {:multi "single" :source "/tmp/source"}) => "/tmp/source"
+ (output-coll {:multi "single" :source "tmp/source"}) => "tmp/source")
+
+(reset! filter-files ",foo,bar,baz,blippy,cow,bees,")
+
+(fact
+ (parse-filter-files) => ["foo" "bar" "baz"  "blippy" "cow" "bees"])

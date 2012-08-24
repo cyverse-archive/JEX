@@ -469,14 +469,14 @@
   (assoc condor-map
     :all-output-jobs (apply concat (map :output-jobs (:steps condor-map)))))
 
-(defn- input-coll [jdef]
+(defn input-coll [jdef]
   "Examines an input job definition and returns the path to file or directory."
   (quote-value
     (let [multi (:multi jdef)
           fpath (ut/basename (:source jdef))]
       (if (= multi "collection") (ut/add-trailing-slash fpath) fpath))))
 
-(defn- make-abs-output
+(defn make-abs-output
   "Takes in an output path and makes it absolute if it's not. Note that
    this is intended for use in a bash script and will get executed on
    the Condor cluster."
@@ -485,7 +485,7 @@
     (str "$(pwd)/" (quote-value out-path))
     (quote-value out-path)))
 
-(defn- output-coll
+(defn output-coll
   "Examines an output job definition and returns the path to the file or
    directory."
   [jdef]
@@ -493,7 +493,7 @@
     (make-abs-output (ut/add-trailing-slash (:source jdef))) 
     (:source jdef)))
 
-(defn- parse-filter-files
+(defn parse-filter-files
   "Parses the filter-files configuration option into a list."
   []
   (filterv #(not (string/blank? %)) (string/split @filter-files #",")))
