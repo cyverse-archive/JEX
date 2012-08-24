@@ -258,3 +258,46 @@
      :name "footastic1"}
     :config {:params p}}]))
 
+(fact
+ (steps condor-map) =>
+ (assoc condor-map
+   :steps (sequence
+           [
+            {:id "condor-0"
+             :type "condor"
+             :submission_date 0
+             :status "Submitted"
+             :environment "foo=\"bar\" baz=\"blippy\""
+             :executable "/usr/local/bin/footastic"
+             :arguments "-n0 'v0' -n1 'v1' -n2 'v2' -n3 'v3'"
+             :stdout "'/test/stdout'"
+             :stderr "'/test/stderr'"
+             :stdin "/test/stdin"
+             :log-file "/tmp/logs/condor-log-0"
+             :component
+             {:location "/usr/local/bin/"
+              :name "footastic"}
+             :config
+             {:params p}}
+            {:id "condor-1"
+             :type "condor"
+             :submission_date 0
+             :status "Submitted"
+             :environment "PATH=\"/usr/local/bin\""
+             :executable "/usr/local/bin/footastic1"
+             :arguments "-n0 'v0' -n1 'v1' -n2 'v2' -n3 'v3'"
+             :stdout "'/test/stdout1'"
+             :stderr "'/test/stderr1'"
+             :stdin "/test/stdin1"
+             :log-file "/tmp/log-file1"
+             :component
+             {:location "/usr/local/bin"
+              :name "footastic1"}
+             :config {:params p}}])))
+
+(fact
+ (handle-source-path "/tmp/foo" "collection") => "/tmp/foo/"
+ (handle-source-path "/tmp/foo" "single") => "/tmp/foo"
+ (handle-source-path "/tmp/foo" "") => "/tmp/foo"
+ (handle-source-path "/tmp/foo" nil) => "/tmp/foo")
+
