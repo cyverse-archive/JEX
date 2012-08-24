@@ -536,3 +536,77 @@
           :environment "PATH=/usr/local/bin"
           :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir'"
           :dest "/tmp/output-dir"}]))
+
+(fact
+ (process-outputs output-condor-map) =>
+ (sequence
+  [{:config
+    {:output
+     [{:retain true
+       :multiplicity "collection"
+       :name "/tmp/source"}
+      {:retain false
+       :multiplicity "single"
+       :name "/tmp/source1"}]}
+    :output-jobs
+    (sequence
+     [{:id "condor-0-output-0"
+       :submission_date 0
+       :type "condor"
+       :status "Submitted"
+       :retain true
+       :multi "collection"
+       :source "/tmp/source"
+       :executable "/usr/local/bin/filetool"
+       :environment "PATH=/usr/local/bin"
+       :arguments "put --user foo --source '/tmp/source' --destination '/tmp/output-dir'"
+       :dest "/tmp/output-dir"}
+      {:id "condor-0-output-1"
+       :submission_date 0
+       :type "condor"
+       :status "Submitted"
+       :retain false
+       :multi "single"
+       :source "/tmp/source1"
+       :executable "/usr/local/bin/filetool"
+       :environment "PATH=/usr/local/bin"
+       :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir'"
+       :dest "/tmp/output-dir"}])}]))
+
+(fact
+ (output-jobs output-condor-map) =>
+ (merge output-condor-map
+        {:steps
+         (sequence
+          [{:config
+            {:output
+             [{:retain true
+               :multiplicity "collection"
+               :name "/tmp/source"}
+              {:retain false
+               :multiplicity "single"
+               :name "/tmp/source1"}]}
+            :output-jobs
+            (sequence
+             [{:id "condor-0-output-0"
+               :submission_date 0
+               :type "condor"
+               :status "Submitted"
+               :retain true
+               :multi "collection"
+               :source "/tmp/source"
+               :executable "/usr/local/bin/filetool"
+               :environment "PATH=/usr/local/bin"
+               :arguments "put --user foo --source '/tmp/source' --destination '/tmp/output-dir'"
+               :dest "/tmp/output-dir"}
+              {:id "condor-0-output-1"
+               :submission_date 0
+               :type "condor"
+               :status "Submitted"
+               :retain false
+               :multi "single"
+               :source "/tmp/source1"
+               :executable "/usr/local/bin/filetool"
+               :environment "PATH=/usr/local/bin"
+               :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir'"
+               :dest "/tmp/output-dir"}])}])}))
