@@ -288,7 +288,7 @@
   [condor-map]
   (assoc condor-map :steps (process-steps condor-map)))
 
-(defn- handle-source-path
+(defn handle-source-path
   "Takes in a source path and a multiplicity and adds a trailing slash if
    needed."
   [source-path multiplicity]
@@ -388,7 +388,7 @@
   "Formats the porklock arguments for output jobs."
   [user source dest]
   (str "put --user " user
-       " --source " source
+       " --source " (quote-value source)
        " --destination " (quote-value dest)))
 
 (defn output-id-str
