@@ -301,3 +301,93 @@
  (handle-source-path "/tmp/foo" "") => "/tmp/foo"
  (handle-source-path "/tmp/foo" nil) => "/tmp/foo")
 
+(fact
+ (input-id-str 0 0) => "condor-0-input-0"
+ (input-id-str 0 1) => "condor-0-input-1")
+
+(fact
+ (input-stdout 0 0) => "logs/condor-0-input-0-stdout"
+ (input-stdout 0 1) => "logs/condor-0-input-1-stdout")
+
+(fact
+ (input-stderr 0 0) => "logs/condor-0-input-0-stderr"
+ (input-stderr 0 1) => "logs/condor-0-input-1-stderr")
+
+(fact
+ (input-log-file "/tmp" 0 0) => "/tmp/logs/condor-0-input-0-log"
+ (input-log-file "/tmp" 0 1) => "/tmp/logs/condor-0-input-1-log")
+
+(fact
+ (input-arguments "foo" "/tmp/foo" {:multiplicity "collection"}) =>
+ "get --user foo --source '/tmp/foo/'"
+
+ (input-arguments "foo" "/tmp/foo" {:multiplicity "single"}) =>
+ "get --user foo --source '/tmp/foo'"
+
+ (input-arguments "foo" "/tmp/foo" {:multiplicity ""}) =>
+ "get --user foo --source '/tmp/foo'"
+
+ (input-arguments "foo" "/tmp/foo" {}) =>
+ "get --user foo --source '/tmp/foo'")
+
+(fact
+ (input-iterator-vec {:config {:input [{:step 1} {:step 2} {:step 3}]}}) =>
+ [[0 {:step 1}] [1 {:step 2}] [2 {:step 3}]])
+
+(reset! filetool-path "/usr/local/bin/filetool")
+(reset! icommands-path "/usr/local/bin")
+
+(def input-condor-map
+  {:submission_date 0
+   :username "foo"
+   :condor-log-dir "/tmp"
+   :steps
+   [{:config
+     {:input
+      [{:retain true
+        :multiplicity "collection"
+        :value "/tmp/source"}
+       {:retain false
+        :multiplicity "single"
+        :value "/tmp/source1"}]}}]})
+
+(fact
+ (process-step-inputs
+  input-condor-map
+  [0
+   {:config
+    {:input
+     [{:retain true
+       :multiplicity "collection"
+       :value "/tmp/source"}
+      {:retain false
+       :multiplicity "single"
+       :value "/tmp/source1"}]}}]) =>
+      (sequence
+       [{:id "condor-0-input-0"
+         :submission_date 0
+         :type "condor"
+         :status "Submitted"
+         :retain true
+         :multi "collection"
+         :source "/tmp/source"
+         :executable "/usr/local/bin/filetool"
+         :environment "PATH=/usr/local/bin"
+         :arguments "get --user foo --source '/tmp/source/'"
+         :stdout "logs/condor-0-input-0-stdout"
+         :stderr "logs/condor-0-input-0-stderr"
+         :log-file "/tmp/logs/condor-0-input-0-log"}
+        {:id "condor-0-input-1"
+         :submission_date 0
+         :type "condor"
+         :status "Submitted"
+         :retain false
+         :multi "single"
+         :source "/tmp/source1"
+         :executable "/usr/local/bin/filetool"
+         :environment "PATH=/usr/local/bin"
+         :arguments "get --user foo --source '/tmp/source1'"
+         :stdout "logs/condor-0-input-1-stdout"
+         :stderr "logs/condor-0-input-1-stderr"
+         :log-file "/tmp/logs/condor-0-input-1-log"}]))
+
