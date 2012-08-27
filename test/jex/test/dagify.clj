@@ -130,3 +130,13 @@
   "popd\n"
   "rm -r iplant-de-jobs/testuser/testuuid\n"
   "exit $EXITSTATUS\n"))
+
+(fact
+ (log-log-dir {:condor-log-dir "/tmp/log"}) => "/tmp/log/logs")
+
+(fact
+ (scriptpath {:working_dir "/tmp/work"}) => "/tmp/work/logs/iplant.sh")
+
+(fact
+ (script-command-file {:working_dir "/tmp/work"}) =>
+ "/tmp/work/logs/iplant.cmd")
