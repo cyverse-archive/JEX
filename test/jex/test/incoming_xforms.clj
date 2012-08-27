@@ -706,3 +706,49 @@
   :log-file "/tmp/condor-log/logs/output-last-log"
   :arguments
   "put --user testuser --destination '/tmp/output' --exclude foo,bar,baz,blippy,cow,bees,/tmp/output-source1,'input-source1'"})
+
+(def testmap
+  {:output_dir "/tmp/output"
+   :condor-log-dir "/tmp/condor-log"
+   :all-input-jobs injobs
+   :all-output-jobs outjobs
+   :username "testuser"})
+
+(fact
+ (extra-jobs testmap) =>
+ {:output_dir "/tmp/output"
+  :condor-log-dir "/tmp/condor-log"
+  :all-input-jobs injobs
+  :all-output-jobs outjobs
+  :username "testuser"
+  :imkdir-job
+  {:id "imkdir"
+   :status "Submitted"
+   :environment "PATH=/usr/local/bin"
+   :executable "/usr/local/bin/filetool"
+   :stderr "logs/imkdir-stderr"
+   :stdout "logs/imkdir-stdout"
+   :log-file "/tmp/condor-log/logs/imkdir-log"
+   :arguments "mkdir --user testuser --destination '/tmp/output'"}
+  :final-output-job
+  {:id "output-last"
+   :status "Submitted"
+   :executable "/usr/local/bin/filetool"
+   :environment "PATH=/usr/local/bin"
+   :stderr "logs/output-last-stderr"
+   :stdout "logs/output-last-stdout"
+   :log-file "/tmp/condor-log/logs/output-last-log"
+   :arguments
+   "put --user testuser --destination '/tmp/output' --exclude foo,bar,baz,blippy,cow,bees,/tmp/output-source1,'input-source1'"}})
+
+(fact
+ (rm-step-component
+  {:steps
+   [{:component "foo"}
+    {:component "bar"}]}) => {:steps [{} {}]})
+
+(fact
+ (rm-step-config
+  {:steps
+   [{:config "foo"}
+    {:config "bar"}]}) => {:steps [{} {}]})
