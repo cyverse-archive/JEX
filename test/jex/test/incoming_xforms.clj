@@ -752,3 +752,191 @@
   {:steps
    [{:config "foo"}
     {:config "bar"}]}) => {:steps [{} {}]})
+
+(def final-test-map
+  {:username "wregglej"
+   :output_dir "/tmp/output"
+   :create_output_subdir true
+   :name "final-test-map"
+   :steps
+   [{:component
+     {:location "/usr/local/bin"
+      :name "foobar"}
+     :config
+     {:params
+      [{:name "-n0"
+        :value "param0"}
+       {:name "-n1"
+        :value "param1"}]
+      :input
+      [{:retain true
+        :multiplicity "collection"
+        :value "/tmp/source"}
+       {:retain false
+        :multiplicity "single"
+        :value "/tmp/source1"}]}}
+    {:component
+     {:location "/usr/local/bin"
+      :name "foobar1"}
+     :config
+     {:params
+      [{:name "-n2"
+        :value "param2"}
+       {:name "-n3"
+        :value "param3"}]
+      :output
+      [{:retain true
+        :multiplicity "collection"
+        :name "/tmp/output1"}
+       {:retain false
+        :multiplicity "single"
+        :name "/tmp/output2"}]
+      :input
+      [{:retain true
+        :multiplicity "collection"
+        :value "/tmp/source2"}
+       {:retain false
+        :multiplicity "single"
+        :value "/tmp/source3"}]}}]})
+
+(def transform-output
+  (transform final-test-map epoch-func))
+
+(fact
+ (:now_date transform-output) => "1969-12-31-17-00-00.000"
+ (:username transform-output) => "wregglej"
+
+ (:output_dir transform-output) =>
+ "/tmp/output/final-test-map-1969-12-31-17-00-00.000"
+
+ (:create_output_subdir transform-output) => true?
+ (:condor-log-dir transform-output) =>
+ "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/"
+
+ (:name transform-output) => "final-test-map"
+ (:working_dir transform-output) =>
+ "/tmp/nfs-base/wregglej/final-test-map-1969-12-31-17-00-00.000/"
+ 
+ (first (:all-input-jobs transform-output)) =>
+ {:id "condor-0-input-0"
+  :executable "/usr/local/bin/filetool"
+  :environment "PATH=/usr/local/bin"
+  :submission_date 0
+  :status "Submitted"
+  :arguments "get --user wregglej --source '/tmp/source/'"
+  :type "condor"
+  :source "/tmp/source"
+  :stderr "logs/condor-0-input-0-stderr"
+  :stdout "logs/condor-0-input-0-stdout"
+  :log-file "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/condor-0-input-0-log"
+  :multi "collection"
+  :retain true}
+
+ (nth (:all-input-jobs transform-output) 1) =>
+ {:id "condor-0-input-1"
+  :executable "/usr/local/bin/filetool"
+  :environment "PATH=/usr/local/bin"
+  :submission_date 0
+  :status "Submitted"
+  :arguments "get --user wregglej --source '/tmp/source1'"
+  :type "condor"
+  :source "/tmp/source1"
+  :stderr "logs/condor-0-input-1-stderr"
+  :stdout "logs/condor-0-input-1-stdout"
+  :log-file "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/condor-0-input-1-log"
+  :multi "single"
+  :retain false}
+
+ (nth (:all-input-jobs transform-output) 2) =>
+ {:id "condor-1-input-0"
+  :executable "/usr/local/bin/filetool"
+  :environment "PATH=/usr/local/bin"
+  :submission_date 0
+  :status "Submitted"
+  :arguments "get --user wregglej --source '/tmp/source2/'"
+  :type "condor"
+  :source "/tmp/source2"
+  :stderr "logs/condor-1-input-0-stderr"
+  :stdout "logs/condor-1-input-0-stdout"
+  :log-file "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/condor-1-input-0-log"
+  :multi "collection"
+  :retain true}
+
+ (nth (:all-input-jobs transform-output) 3) =>
+ {:id "condor-1-input-1"
+  :executable "/usr/local/bin/filetool"
+  :environment "PATH=/usr/local/bin"
+  :submission_date 0
+  :status "Submitted"
+  :arguments "get --user wregglej --source '/tmp/source3'"
+  :type "condor"
+  :source "/tmp/source3"
+  :stderr "logs/condor-1-input-1-stderr"
+  :stdout "logs/condor-1-input-1-stdout"
+  :log-file "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/condor-1-input-1-log"
+  :multi "single"
+  :retain false}
+
+ (first (:all-output-jobs transform-output)) =>
+ {:id "condor-1-output-0"
+  :executable "/usr/local/bin/filetool"
+  :environment "PATH=/usr/local/bin"
+  :submission_date 0
+  :status "Submitted"
+  :arguments "put --user wregglej --source '/tmp/output1' --destination '/tmp/output/final-test-map-1969-12-31-17-00-00.000'"
+  :type "condor"
+  :multi "collection"
+  :source "/tmp/output1"
+  :dest "/tmp/output/final-test-map-1969-12-31-17-00-00.000"
+  :retain true}
+
+ (nth (:all-output-jobs transform-output) 1) =>
+ {:id "condor-1-output-1"
+  :executable "/usr/local/bin/filetool"
+  :environment "PATH=/usr/local/bin"
+  :submission_date 0
+  :status "Submitted"
+  :arguments "put --user wregglej --source '/tmp/output2' --destination '/tmp/output/final-test-map-1969-12-31-17-00-00.000'"
+  :type "condor"
+  :source "/tmp/output2"
+  :dest "/tmp/output/final-test-map-1969-12-31-17-00-00.000"
+  :multi "single"
+  :retain false})
+
+(def first-step (first (:steps transform-output)))
+
+(fact
+ (:id first-step) => "condor-0"
+ (:executable first-step) => "/usr/local/bin/foobar"
+ (:environment first-step) => nil?
+ (:type first-step) => "condor"
+ (:submission_date first-step) => 0
+ (:status first-step) => "Submitted"
+ (:arguments first-step) => "-n0 'param0' -n1 'param1'"
+ (:stderr first-step) => "logs/condor-stderr-0"
+ (:stdout first-step) => "logs/condor-stdout-0"
+ (:log-file first-step) =>
+ "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/condor-log-0")
+
+;;;As a note, we don't care about the input-jobs and the output-jobs
+;;;at the step level. They're the same as the all-input-jobs, and
+;;;all-output-jobs, so testing them should be a moot point. Also,
+;;;I don't believe they're used anywhere.
+
+(def second-step (nth (:steps transform-output) 1))
+
+(fact
+ (:id second-step) => "condor-1"
+ (:executable second-step) => "/usr/local/bin/foobar1"
+ (:environment second-step) => nil?
+ (:type second-step) => "condor"
+ (:submission_date second-step) => 0
+ (:status second-step) => "Submitted"
+ (:arguments second-step) => "-n2 'param2' -n3 'param3'"
+ (:stderr second-step) => "logs/condor-stderr-1"
+ (:stdout second-step) => "logs/condor-stdout-1"
+ (:log-file second-step) =>
+ "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/condor-log-1")
+
+
+

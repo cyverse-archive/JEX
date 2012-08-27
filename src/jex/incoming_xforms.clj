@@ -582,17 +582,19 @@
 
 (defn transform
   "Transforms the condor-map that's passed in into something more useable."
-  [condor-map]
-  (-> condor-map
-    now-date
-    analysis-attrs
-    context-dirs
-    steps
-    input-jobs
-    output-jobs
-    all-input-jobs
-    all-output-jobs
-    extra-jobs
-    rm-step-component
-    rm-step-config))
+  ([condor-map]
+     (transform condor-map now-date))
+  ([condor-map date-func]
+     (-> condor-map
+         (now-date date-func)
+         (analysis-attrs date-func)
+         context-dirs
+         steps
+         input-jobs
+         output-jobs
+         all-input-jobs
+         all-output-jobs
+         extra-jobs
+         rm-step-component
+         rm-step-config)))
 
