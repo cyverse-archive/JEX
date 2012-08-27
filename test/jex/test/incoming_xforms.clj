@@ -657,3 +657,52 @@
 
 (fact
  (parse-filter-files) => ["foo" "bar" "baz"  "blippy" "cow" "bees"])
+
+(def outjobs
+  [{:retain true
+    :multi "collection"
+    :source "/tmp/output-source0"}
+   {:retain false
+    :multi "single"
+    :source "/tmp/output-source1"}
+   {:retain "true"
+    :multi "collection"
+    :source "/tmp/output-source2"}])
+
+(def injobs
+  [{:retain true
+    :multi "collection"
+    :source "/tmp/input-source0"}
+   {:retain false
+    :multi "single"
+    :source "/tmp/input-source1"}
+   {:retain true
+    :multi "collection"
+    :source "/tmp/input-source2"}])
+
+(fact
+ (exclude-arg injobs outjobs) =>
+ "--exclude foo,bar,baz,blippy,cow,bees,/tmp/output-source1,'input-source1'")
+
+(fact
+ (imkdir-job-map "/tmp/output/" "/tmp/condor-log" "testuser") =>
+ {:id "imkdir"
+  :status "Submitted"
+  :environment "PATH=/usr/local/bin"
+  :executable "/usr/local/bin/filetool"
+  :stderr "logs/imkdir-stderr"
+  :stdout "logs/imkdir-stdout"
+  :log-file "/tmp/condor-log/logs/imkdir-log"
+  :arguments "mkdir --user testuser --destination '/tmp/output/'"})
+
+(fact
+ (shotgun-job-map "/tmp/output" "/tmp/condor-log" injobs outjobs "testuser") =>
+ {:id "output-last"
+  :status "Submitted"
+  :executable "/usr/local/bin/filetool"
+  :environment "PATH=/usr/local/bin"
+  :stderr "logs/output-last-stderr"
+  :stdout "logs/output-last-stdout"
+  :log-file "/tmp/condor-log/logs/output-last-log"
+  :arguments
+  "put --user testuser --destination '/tmp/output' --exclude foo,bar,baz,blippy,cow,bees,/tmp/output-source1,'input-source1'"})
