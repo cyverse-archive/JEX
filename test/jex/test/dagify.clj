@@ -161,3 +161,19 @@
   :condor-log-dir "/tmp/log"
   :working_dir "/tmp/working_dir"})
 
+(.mkdirs (java.io.File. "test/scratch/"))
+
+(fact
+ (create-submission-directory {:working_dir "test/scratch"}) =>
+ {:working_dir "test/scratch"}
+
+ (.exists (java.io.File. "test/scratch/logs")) => true?)
+(.delete (java.io.File. "test/scratch/logs"))
+
+(fact
+ (create-local-log-directory {:condor-log-dir "test/scratch/condor-log"}) =>
+ {:condor-log-dir "test/scratch/condor-log"}
+
+ (.exists (java.io.File. "test/scratch/condor-log")))
+(.delete (java.io.File. "test/scratch/condor-log"))
+(.delete (java.io.File. "test/scratch"))
