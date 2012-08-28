@@ -132,7 +132,7 @@
   "exit $EXITSTATUS\n"))
 
 (fact
- (log-log-dir {:condor-log-dir "/tmp/log"}) => "/tmp/log/logs")
+ (local-log-dir {:condor-log-dir "/tmp/log"}) => "/tmp/log/logs")
 
 (fact
  (scriptpath {:working_dir "/tmp/work"}) => "/tmp/work/logs/iplant.sh")
@@ -140,3 +140,24 @@
 (fact
  (script-command-file {:working_dir "/tmp/work"}) =>
  "/tmp/work/logs/iplant.cmd")
+
+(def a-map
+  {:steps []
+   :working_dir "/tmp/working_dir"
+   :username "testuser"
+   :uuid "testuuid"
+   :condor-log-dir "/tmp/log"})
+
+(fact
+ (cleanup-analysis-map a-map) =>
+ {:executable "/bin/bash"
+  :args "/tmp/working_dir/logs/iplant.sh"
+  :status "Submitted"
+  :output "/tmp/working_dir/logs/script-output.log"
+  :error "/tmp/working_dir/logs/script-error.log"
+  :log "/tmp/log/logs"
+  :username "testuser"
+  :uuid "testuuid"
+  :condor-log-dir "/tmp/log"
+  :working_dir "/tmp/working_dir"})
+
