@@ -177,8 +177,6 @@
  (.exists (java.io.File. "test/scratch/condor-log")) => true?)
 (.delete (java.io.File. "test/scratch/condor-log"))
 
-
-
 (def test-gen-map
   {:working_dir "test/scratch/"
    :condor-log-dir "test/scratch/"
@@ -271,4 +269,28 @@
 (.delete (java.io.File. "test/scratch/logs/iplant.cmd"))
 (.delete (java.io.File. "test/scratch/logs/iplant.sh"))
 (.delete (java.io.File. "test/scratch/logs"))
+(.delete (java.io.File. "test/scratch"))
+
+(def test-dagify-result (dagify test-gen-map))
+
+(fact
+ (.exists (java.io.File. "test/scratch")) => true?
+ (.exists (java.io.File. "test/scratch/logs")) => true?
+ (.exists (java.io.File. "test/scratch/logs/iplant.cmd")) => true?
+ (.exists (java.io.File. "test/scratch/logs/iplant.sh")) => true?
+ (count test-dagify-result) => 2
+ (first test-dagify-result) => "test/scratch/logs/iplant.cmd"
+ (:steps (last test-dagify-result)) => nil?
+ (:executable (last test-dagify-result)) => "/bin/bash"
+ (:args (last test-dagify-result)) => "test/scratch/logs/iplant.sh"
+ (:status (last test-dagify-result)) => "Submitted"
+ (:output (last test-dagify-result)) => "test/scratch/logs/script-output.log"
+ (:error (last test-dagify-result)) => "test/scratch/logs/script-error.log"
+ (:log (last test-dagify-result)) => "test/scratch/logs")
+
+(.delete (java.io.File. "test/scratch/logs/iplant.cmd"))
+(.delete (java.io.File. "test/scratch/logs/iplant.sh"))
+(.delete (java.io.File. "test/scratch/logs"))
+(.delete (java.io.File. "test/scratch/condor-log/logs/"))
+(.delete (java.io.File. "test/scratch/condor-log"))
 (.delete (java.io.File. "test/scratch"))
