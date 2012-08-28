@@ -174,6 +174,6 @@
  (create-local-log-directory {:condor-log-dir "test/scratch/condor-log"}) =>
  {:condor-log-dir "test/scratch/condor-log"}
 
- (.exists (java.io.File. "test/scratch/condor-log")))
+ (.exists (java.io.File. "test/scratch/condor-log")) => true?)
 (.delete (java.io.File. "test/scratch/condor-log"))
 (.delete (java.io.File. "test/scratch"))
