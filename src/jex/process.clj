@@ -79,27 +79,50 @@
       env
       (sh/sh "condor_rm" sub-id))))
 
-(defn stop-analysis
-  "Calls condor_rm on the submission id associated with the provided analysis id."
+(defn missing-condor-id
+  [uuid]
+  (hash-map
+   :error_code "ERR_MISSING_CONDOR_ID"
+   :uuid uuid))
+
+(defn get-job-sub-id
   [uuid]
   (let [osm-url    (get @props "jex.osm.url")
         osm-coll   (get @props "jex.osm.collection")
         osm-client (osm/create osm-url osm-coll)
-        sub-id (get-in 
-                 (first 
-                   (:objects
-                     (json/read-json 
-                       (osm/query osm-client {:state.uuid uuid})))) 
-                 [:state :sub_id])]
+        result (json/read-json (osm/query osm-client {:state.uuid uuid}))]
+    (when-not result
+      (throw+ (missing-condor-id uuid)))
+
+    (when-not (contains? result :objects)
+      (throw+ (missing-condor-id uuid)))
+
+    (when-not (pos? (count (:objects result)))
+      (throw+ (missing-condor-id uuid)))
+
+    (when-not (contains? (first (:objects result)) :state)
+      (throw+ (missing-condor-id uuid)))
+
+    (when-not (contains? (:state (first (:objects result))) :sub_id)
+      (throw+ (missing-condor-id uuid)))
+
+    (get-in (first (:objects result)) [:state :sub_id])))
+
+
+(defn stop-analysis
+  "Calls condor_rm on the submission id associated with the provided analysis
+   id."
+  [uuid]
+  (let [sub-id (get-job-sub-id uuid)]
+    (log/debug (str "Grabbed Condor ID: " sub-id))
     (if sub-id
-      (do 
-        (let [{:keys [exit out err]} (condor-rm sub-id)]
-          (when-not (= exit 0)
-            (throw+ {:error_code "ERR_FAILED_NON_ZERO" 
-                     :sub_id sub-id
-                     :out out
-                     :err err})))
-        {:condor-id sub-id})
+      (let [{:keys [exit out err]} (condor-rm sub-id)]
+        (when-not (= exit 0)
+          (log/debug (str "condor-rm status was: " exit))
+          (throw+ {:error_code "ERR_FAILED_NON_ZERO" 
+                   :sub_id sub-id
+                   :out out
+                   :err err})))
       (throw+ {:error_code "ERR_MISSING_CONDOR_ID" :uuid uuid}))))
 
 (defn cmdline-preview
