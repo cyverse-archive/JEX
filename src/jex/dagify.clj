@@ -22,20 +22,31 @@
   [local-log-dir]
   (ut/path-join local-log-dir "script-condor-log"))
 
+(defn ipc-exe
+  [{:keys [steps] :as amap}]
+  (str "+IpcExe = \"" (ut/basename (:executable (first steps))) "\"\n"))
+
+(defn ipc-exe-path
+  [{:keys [steps] :as amap}]
+  (str "+IpcExePath = \"" (ut/dirname (:executable (first steps))) "\"\n"))
+
 (defn script-submission
   "Generates the Condor submission file that will execute the generated
    shell script."
-  [username uuid script-dir script-path local-log-dir]
+  [{:keys [username uuid working_dir script-path local-log-dir]
+    :as analysis-map}]
   (str
    "universe = vanilla\n"
    "executable = /bin/bash\n" 
    "arguments = \"" script-path "\"\n"
-   "output = " (script-output script-dir) "\n"
-   "error = " (script-error script-dir) "\n"
+   "output = " (script-output working_dir) "\n"
+   "error = " (script-error working_dir) "\n"
    "log = " (script-log local-log-dir) "\n"
    "+IpcUuid = \"" uuid "\"\n"
    "+IpcJobId = \"generated_script\"\n"
    "+IpcUsername = \"" username "\"\n"
+   (ipc-exe analysis-map)
+   (ipc-exe-path analysis-map)
    "should_transfer_files = NO\n"
    "notification = NEVER\n"
    "queue\n"))
@@ -127,11 +138,10 @@
   (spit
    (script-command-file analysis-map)
    (script-submission
-    (:username analysis-map)
-    (:uuid analysis-map)
-    (:working_dir analysis-map)
-    (scriptpath analysis-map)
-    (local-log-dir analysis-map)))
+    (merge
+     analysis-map
+     {:script-path (scriptpath analysis-map)
+      :local-log-dir (local-log-dir analysis-map)})))
   analysis-map)
 
 (defn cleanup-analysis-map

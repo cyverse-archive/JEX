@@ -5,8 +5,7 @@
                  [org.clojure/java.classpath "0.1.0"]
                  [compojure "1.0.1"]
                  [ring/ring-jetty-adapter "1.0.1"]
-                 [clj-http "0.2.5"]
-                 [org.iplantc/clojure-commons "1.1.0-SNAPSHOT"]
+                 [org.iplantc/clojure-commons "1.2.1-SNAPSHOT"]
                  [slingshot "0.10.1"]]
   :iplant-rpm {:summary "jex",
                :runuser "condor"

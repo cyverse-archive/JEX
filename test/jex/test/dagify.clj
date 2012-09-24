@@ -11,23 +11,32 @@
 (fact
  (script-log "/tmp/log-dir") => "/tmp/log-dir/script-condor-log")
 
+(def testsubmap
+  {:username "testuser"
+   :uuid "testuuid"
+   :working_dir "/tmp/script-dir"
+   :script-path "/tmp/script-dir/logs/iplant.sh"
+   :local-log-dir "/tmp/log-dir"
+   :steps [{:executable "/tmp/execpath/execname"}]})
+
 (fact
- (script-submission
-  "testuser"
-  "testuuid"
-  "/tmp/script-dir"
-  "/tmp/script-path"
-  "/tmp/log-dir") =>
+ (ipc-exe testsubmap) => "+IpcExe = \"execname\"\n"
+ (ipc-exe-path testsubmap) => "+IpcExePath = \"/tmp/execpath\"\n")
+
+(fact
+ (script-submission testsubmap) =>
   (str
    "universe = vanilla\n"
    "executable = /bin/bash\n"
-   "arguments = \"/tmp/script-path\"\n"
+   "arguments = \"/tmp/script-dir/logs/iplant.sh\"\n"
    "output = /tmp/script-dir/logs/script-output.log\n"
    "error = /tmp/script-dir/logs/script-error.log\n"
    "log = /tmp/log-dir/script-condor-log\n"
    "+IpcUuid = \"testuuid\"\n"
    "+IpcJobId = \"generated_script\"\n"
    "+IpcUsername = \"testuser\"\n"
+   "+IpcExe = \"execname\"\n"
+   "+IpcExePath = \"/tmp/execpath\"\n"
    "should_transfer_files = NO\n"
    "notification = NEVER\n"
    "queue\n"))
@@ -228,7 +237,7 @@
  (.exists (java.io.File. "test/scratch/logs/iplant.sh")) => true?
  
  (slurp "test/scratch/logs/iplant.cmd") =>
- "universe = vanilla\nexecutable = /bin/bash\narguments = \"test/scratch/logs/iplant.sh\"\noutput = test/scratch/logs/script-output.log\nerror = test/scratch/logs/script-error.log\nlog = test/scratch/logs/script-condor-log\n+IpcUuid = \"testuuid\"\n+IpcJobId = \"generated_script\"\n+IpcUsername = \"testuser\"\nshould_transfer_files = NO\nnotification = NEVER\nqueue\n"
+ "universe = vanilla\nexecutable = /bin/bash\narguments = \"test/scratch/logs/iplant.sh\"\noutput = test/scratch/logs/script-output.log\nerror = test/scratch/logs/script-error.log\nlog = test/scratch/logs/script-condor-log\n+IpcUuid = \"testuuid\"\n+IpcJobId = \"generated_script\"\n+IpcUsername = \"testuser\"\n+IpcExe = \"step-1-exec\"\n+IpcExePath = \"\"\nshould_transfer_files = NO\nnotification = NEVER\nqueue\n"
 
  (slurp "test/scratch/logs/iplant.sh") =>
  (str
