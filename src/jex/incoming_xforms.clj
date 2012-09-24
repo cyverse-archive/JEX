@@ -583,7 +583,7 @@
 (defn transform
   "Transforms the condor-map that's passed in into something more useable."
   ([condor-map]
-     (transform condor-map now-date))
+     (transform condor-map date))
   ([condor-map date-func]
      (-> condor-map
          (now-date date-func)
