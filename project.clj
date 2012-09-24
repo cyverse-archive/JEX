@@ -1,4 +1,4 @@
-(defproject jex/jex "0.2.0-SNAPSHOT" 
+(defproject jex/jex "0.2.1-SNAPSHOT" 
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [org.clojure/data.json "0.1.1"]
                  [org.clojure/tools.logging "0.2.3"]
