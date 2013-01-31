@@ -1,11 +1,11 @@
-(defproject jex/jex "0.2.1-SNAPSHOT" 
+(defproject jex/jex "0.2.1-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.4.0"]
-                 [org.clojure/data.json "0.1.1"]
                  [org.clojure/tools.logging "0.2.3"]
                  [org.clojure/java.classpath "0.1.0"]
+                 [cheshire "5.0.1"]
                  [compojure "1.0.1"]
                  [ring/ring-jetty-adapter "1.0.1"]
-                 [org.iplantc/clojure-commons "1.2.1-SNAPSHOT"]
+                 [org.iplantc/clojure-commons "1.4.0-SNAPSHOT"]
                  [slingshot "0.10.1"]]
   :iplant-rpm {:summary "jex",
                :runuser "condor"

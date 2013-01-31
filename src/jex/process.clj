@@ -7,7 +7,7 @@
             [clojure.tools.logging :as log]
             [clojure.java.shell :as sh]
             [clojure-commons.osm :as osm]
-            [clojure.data.json :as json]))
+            [cheshire.core :as cheshire]))
 
 (defn failure [reason]
   {:status "failure" :reason reason})
@@ -36,7 +36,7 @@
    #(string? (:username %))
    #(string? (:name %))
    #(sequential? (:steps %))
-   #(every? true? 
+   #(every? true?
             (for [step (:steps %)]
               (every? true?
                       [(map? (:config step))
@@ -82,7 +82,7 @@
 (defn extract-state-from-result
   "Extracts the state from the JSON returned by the OSM."
   [result-map]
-  (-> result-map json/read-json :objects first :state))
+  (-> result-map (cheshire/decode true) :objects first :state))
 
 (defn query-for-analysis
   "Queries the OSM for the document representing a particular analysis."
@@ -102,7 +102,9 @@
   (let [osm-url    (get @props "jex.osm.url")
         osm-coll   (get @props "jex.osm.collection")
         osm-client (osm/create osm-url osm-coll)
-        result (json/read-json (osm/query osm-client {:state.uuid uuid}))]
+        result     (cheshire/decode
+                    (osm/query osm-client {:state.uuid uuid})
+                    true)]
     (when-not result
       (throw+ (missing-condor-id uuid)))
 
@@ -131,7 +133,7 @@
       (let [{:keys [exit out err]} (condor-rm sub-id)]
         (when-not (= exit 0)
           (log/debug (str "condor-rm status was: " exit))
-          (throw+ {:error_code "ERR_FAILED_NON_ZERO" 
+          (throw+ {:error_code "ERR_FAILED_NON_ZERO"
                    :sub_id sub-id
                    :out out
                    :err err})))
@@ -159,11 +161,11 @@
   (when-not (contains? param-obj :params)
     (throw+ {:error_code "ERR_INVALID_JSON"
              :message "Missing params key."}))
-  
+
   (when-not (every? true? (map param? (:params param-obj)))
     (throw+ {:error_code "ERR_INVALID_JSON"
              :message "Objects must have 'name', 'value', and 'order' keys."}))
-  
+
   (hash-map :params (ix/escape-params (ix/param-maps (:params param-obj)))))
 
 (defn log-submit-results
@@ -224,7 +226,7 @@
   [submit-map]
   (let [result (-> submit-map ix/transform dagify/dagify)]
     (log/info "Output map:")
-    (log/info (json/json-str (last result)))
+    (log/info (cheshire/encode (last result)))
     result))
 
 (defn condor-submit
@@ -240,7 +242,7 @@
    job to the Condor cluster, applies outgoing transformations, and dumps the
    resulting map to the OSM."
   [submit-map]
-  (let [[sub-path updated-map] (generate-submission submit-map) 
+  (let [[sub-path updated-map] (generate-submission submit-map)
         sub-result (condor-submit sub-path)
         sub-id     (submission-id sub-result)
         doc-id     (push-submission-info-to-osm

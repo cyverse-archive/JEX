@@ -1,5 +1,5 @@
 (ns jex.json-validator
-  (:require [clojure.data.json :as json]
+  (:require [cheshire.core :as cheshire]
             [clojure.tools.logging :as log]
             [clojure.string :as string]
             [clojure.set :as set])
@@ -8,14 +8,12 @@
 (defn json?
   "Returns true if a string is JSON."
   [json-string]
-  (if (try (json/read-json json-string) (catch Exception e false))
+  (if (try (cheshire/decode json-string) (catch Exception e false))
     true
     false))
 
 (defn valid?
   [json-map validators]
-  (every? 
-    true? 
+  (every?
+    true?
     (for [vd validators] (vd json-map))))
-
-

@@ -21,7 +21,7 @@
             [jex.json-body :as jb]
             [clojure.java.io :as ds]
             [clojure.tools.logging :as log]
-            [clojure.data.json :as json]))
+            [cheshire.core :as cheshire]))
 
 (def jex-props (atom nil))
 
@@ -35,14 +35,14 @@
   [request]
   (let [body (:body request)]
     (log/info "Received job request:")
-    (log/info (json/json-str body))
-    
+    (log/info (cheshire/encode body))
+
     (if (jp/validate-submission body)
       (let [[exit-code dag-id doc-id] (jp/submit body)]
         (cond
           (not= exit-code 0)
           (throw+ {:error_code "ERR_FAILED_NON_ZERO"})
-          
+
           :else
           {:sub_id dag-id
            :osm_id doc-id}))
@@ -50,13 +50,13 @@
 
 (defroutes jex-routes
   (GET "/" [] "Welcome to the JEX.")
-  
+
   (POST "/" request
         (trap "submit" do-submission request))
-  
+
   (POST "/arg-preview" request
         (trap "arg-preview" jp/cmdline-preview (:body request)))
-  
+
   (DELETE "/stop/:uuid" [uuid]
           (trap "stop" jp/stop-analysis uuid)))
 
@@ -69,15 +69,15 @@
   [& args]
   (def zkprops (parse-properties "zkhosts.properties"))
   (def zkurl (get zkprops "zookeeper"))
-  
+
   (cl/with-zk
     zkurl
     (when (not (cl/can-run?))
       (log/warn "THIS APPLICATION CANNOT RUN ON THIS MACHINE. SO SAYETH ZOOKEEPER.")
       (log/warn "THIS APPLICATION WILL NOT EXECUTE CORRECTLY.")
       (System/exit 1))
-    
+
     (reset! jex-props (cl/properties "jex")))
-  
+
   (jp/init @jex-props)
   (jetty/run-jetty (site-handler jex-routes) {:port (listen-port)}))
