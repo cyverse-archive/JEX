@@ -10,7 +10,7 @@ The JEX is intended to be run as a user that can submit jobs to a Condor cluster
 
 Input
 -----
-The JEX has a single endpoint, "/", which takes JSON in the following format (keep in mind this is simplistic):
+The JEX's "/" endpoint takes JSON in the following format (keep in mind this is simplistic):
 
     {
         "execution_target" : "condor",
