@@ -87,7 +87,13 @@ The JEX has a single endpoint, "/", which takes JSON in the following format (ke
         ]
     }
 
-If the "environment" field is present in a step map, then the key will be used as the environment variable and the value will be the value the environment variable is set to, wrapped in double-quotes.
+If the "environment" field is present in a step map, then the key will be used as the environment variable and the value will be the value the environment variable is set to, wrapped in double-quotes. For example this map:
+
+    {
+        "PATH" : "/usr/local/bin:$PATH"
+    }
+
+Will result in the step it's associated with having 'PATH="/usr/local/bin:$PATH"' prepended to it in the resulting shell script. The change in the environment will only be in effect for the step the map is associated with.
 
 An example curl will look like this:
 
