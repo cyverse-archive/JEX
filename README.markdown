@@ -31,6 +31,9 @@ The JEX has a single endpoint, "/", which takes JSON in the following format (ke
             {
                 "name" : "step_1",
                 "type" : "condor",
+                "environment" : {
+                    "key" : "value"
+                },
                 "config" : {
                     "input" : [
                         {
@@ -83,7 +86,9 @@ The JEX has a single endpoint, "/", which takes JSON in the following format (ke
             }
         ]
     }
-    
+
+If the "environment" field is present in a step map, then the key will be used as the environment variable and the value will be the value the environment variable is set to, wrapped in double-quotes.
+
 An example curl will look like this:
 
     curl -H "Content-Type:application/json" -d 'Insert overly complicated JSON here' http://127.0.0.1:3000/
@@ -129,18 +134,18 @@ To get a preview of an argument list, do a HTTP POST against /arg-preview. The J
     {
         "params" : [
             {
-                "name" : "-t", 
-                "value" : "foo", 
+                "name" : "-t",
+                "value" : "foo",
                 "order" : 2
-            }, 
+            },
             {
-                "name" : "-u", 
-                "value" : "bar", 
+                "name" : "-u",
+                "value" : "bar",
                 "order" : 1
-            }, 
+            },
             {
-                "name" : "-v", 
-                "value" : "baz", 
+                "name" : "-v",
+                "value" : "baz",
                 "order" : 0
             }
         ]
@@ -172,45 +177,45 @@ The error JSON may contain additional keys, but don't write code against them. H
 Stopping a running analysis
 ---------------------------
 
-To stop an executing analysis, do a HTTP DELETE against the /stop/:uuid endpoint. Substitute an analysis uuid for the :uuid in the path. Here's an example with curl: 
+To stop an executing analysis, do a HTTP DELETE against the /stop/:uuid endpoint. Substitute an analysis uuid for the :uuid in the path. Here's an example with curl:
 
-    curl -X DELETE http://services-2.iplantcollaborative.org:31330/stop/07248d40-c707-11e1-9b21-0800200c9a66 
+    curl -X DELETE http://services-2.iplantcollaborative.org:31330/stop/07248d40-c707-11e1-9b21-0800200c9a66
 
-You should get JSON in the body of a 200 HTTP response formatted as follows: 
+You should get JSON in the body of a 200 HTTP response formatted as follows:
 
-    { 
-        "action" : "stop", 
-        "status" : "success", 
-        "condor-id" : "<A Condor identifier>" 
-    } 
-
-On an error, you should get a 500 HTTP response with a JSON body formatted as follows when the condor_rm command returns a non-zero status: 
-
-    { 
-        "action" : "stop", 
-        "status" : "failure", 
-        "error_code" : "ERR_FAILED_NON_ZERO", 
-        "sub_id" : "<The Condor submission id>", 
-        "err" : "<stderr from the condor_rm command>", 
-        "out" : "<stdout from the condor_rm command>" 
-    } 
-
-Or, if the UUID can't be found in the OSM: 
-
-   { 
-       "action" : "stop", 
-       "status" : "failure", 
-       "error_code" : "ERR_MISSING_CONDOR_ID", 
-       "uuid" : "<the uuid passed in>" 
-   } 
-
-Or for more general errors: 
-
-    { 
-        "action" : "stop", 
-        "status" : "failure", 
-        "error_code" : "ERR_UNCHECKED_EXCEPTION", 
-        "message" : "<error specific message>" 
+    {
+        "action" : "stop",
+        "status" : "success",
+        "condor-id" : "<A Condor identifier>"
     }
-    
+
+On an error, you should get a 500 HTTP response with a JSON body formatted as follows when the condor_rm command returns a non-zero status:
+
+    {
+        "action" : "stop",
+        "status" : "failure",
+        "error_code" : "ERR_FAILED_NON_ZERO",
+        "sub_id" : "<The Condor submission id>",
+        "err" : "<stderr from the condor_rm command>",
+        "out" : "<stdout from the condor_rm command>"
+    }
+
+Or, if the UUID can't be found in the OSM:
+
+   {
+       "action" : "stop",
+       "status" : "failure",
+       "error_code" : "ERR_MISSING_CONDOR_ID",
+       "uuid" : "<the uuid passed in>"
+   }
+
+Or for more general errors:
+
+    {
+        "action" : "stop",
+        "status" : "failure",
+        "error_code" : "ERR_UNCHECKED_EXCEPTION",
+        "message" : "<error specific message>"
+    }
+
 An explanation of the individual fields in the input JSON, how they interact, and what is added by the JEX is forthcoming.
