@@ -9,7 +9,6 @@
          multipart-params
          cookies
          session]
-        [clojure-commons.props]
         [clojure-commons.error-codes]
         [clojure.java.classpath]
         [slingshot.slingshot :only [try+ throw+]])
@@ -60,6 +59,5 @@
 
 (defn -main
   [& args]
-  (configure)
-  (jp/init @jex-props)
+  (load-config-from-zookeeper)
   (jetty/run-jetty (site-handler jex-routes) {:port (listen-port)}))

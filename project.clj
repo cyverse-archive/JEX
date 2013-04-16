@@ -6,7 +6,7 @@
                  [compojure "1.0.1"]
                  [ring/ring-jetty-adapter "1.0.1"]
                  [org.iplantc/clojure-commons "1.4.1-SNAPSHOT"]
-                 [slingshot "0.10.1"]]
+                 [slingshot "0.10.3"]]
   :iplant-rpm {:summary "jex",
                :runuser "condor"
                :dependencies ["iplant-service-config >= 0.1.0-5"],
