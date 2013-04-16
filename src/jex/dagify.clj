@@ -96,6 +96,8 @@
      "rm -r " job-dir "\n"
      "exit $EXITSTATUS\n")))
 
+(defn irods-config-path [])
+
 (defn create-submission-directory
   "Creates the local directory where the iplant.sh and iplant.cmd files get
    written out to."
@@ -129,6 +131,11 @@
   "Generates the path to the iplant.cmd file."
   [analysis-map]
   (ut/path-join (:working_dir analysis-map) "logs" "iplant.cmd"))
+
+(defn irods-config-path
+  "Generates the path to the irods-config file."
+  [{working-dir :working_dir}]
+  (ut/path-join working-dir "logs" "irods-config"))
 
 (defn generate-script-submission
   "Generates and writes out the iplant.sh and iplant.cmd files."

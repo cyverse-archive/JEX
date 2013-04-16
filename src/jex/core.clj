@@ -1,7 +1,8 @@
 (ns jex.core
   (:gen-class)
-  (:use compojure.core)
-  (:use [ring.middleware
+  (:use [jex.config]
+        [compojure.core]
+        [ring.middleware
          params
          keyword-params
          nested-params
@@ -16,19 +17,11 @@
             [compojure.handler :as handler]
             [ring.util.response :as rsp-utils]
             [ring.adapter.jetty :as jetty]
-            [clojure-commons.clavin-client :as cl]
             [jex.process :as jp]
             [jex.json-body :as jb]
             [clojure.java.io :as ds]
             [clojure.tools.logging :as log]
             [cheshire.core :as cheshire]))
-
-(def jex-props (atom nil))
-
-(defn listen-port
-  "Returns the port to accept requests on."
-  []
-  (Integer/parseInt (get @jex-props "jex.app.listen-port")))
 
 (defn do-submission
   "Handles a request on /. "
@@ -67,17 +60,6 @@
 
 (defn -main
   [& args]
-  (def zkprops (parse-properties "zkhosts.properties"))
-  (def zkurl (get zkprops "zookeeper"))
-
-  (cl/with-zk
-    zkurl
-    (when (not (cl/can-run?))
-      (log/warn "THIS APPLICATION CANNOT RUN ON THIS MACHINE. SO SAYETH ZOOKEEPER.")
-      (log/warn "THIS APPLICATION WILL NOT EXECUTE CORRECTLY.")
-      (System/exit 1))
-
-    (reset! jex-props (cl/properties "jex")))
-
+  (configure)
   (jp/init @jex-props)
   (jetty/run-jetty (site-handler jex-routes) {:port (listen-port)}))
