@@ -1,15 +1,8 @@
 (ns jex.incoming-xforms
   (:require [clojure.string :as string]
             [clojure.tools.logging :as log]
-            [clojure-commons.file-utils :as ut]))
-
-(def filetool-path (atom ""))
-(def icommands-path (atom ""))
-(def condor-log-path (atom ""))
-(def nfs-base (atom ""))
-(def irods-base (atom ""))
-(def filter-files (atom ""))
-(def run-on-nfs (atom false))
+            [clojure-commons.file-utils :as ut]
+            [jex.config :as cfg]))
 
 (def replacer
   "Params: [regex replace-str str-to-modify]."
@@ -48,7 +41,7 @@
 (defn filetool-env
   "Creates the filetool environment variables."
   [] 
-  (str "PATH=" @icommands-path))
+  (str "PATH=" (cfg/icommands-path)))
 
 (defn analysis-dirname
   "Creates a directory name for an analysis. Used when the submission
@@ -80,11 +73,11 @@
      (analysis-attrs condor-map date))
   ([condor-map date-func]
      (assoc condor-map
-       :run-on-nfs @run-on-nfs
+       :run-on-nfs (cfg/run-on-nfs)
        :type (or (:type condor-map) "analysis")
        :username (pathize (:username condor-map))
-       :nfs_base @nfs-base
-       :irods_base @irods-base
+       :nfs_base (cfg/nfs-base)
+       :irods_base (cfg/irods-base)
        :submission_date (.getTime (date-func)))))
 
 (defn output-directory
@@ -141,7 +134,7 @@
                       (:now_date condor-map))
         log-dir (ut/add-trailing-slash
                       (ut/path-join
-                       @condor-log-path
+                       (cfg/condor-log-path)
                        username
                        analysis-dir))
         output-dir   (output-directory condor-map)
@@ -357,7 +350,7 @@
      :retain          (:retain input)
      :multi           (:multiplicity input)
      :source          (:value input)
-     :executable      @filetool-path
+     :executable      (cfg/filetool-path)
      :environment     (filetool-env)
      :arguments       (input-arguments
                        (:username condor-map)
@@ -423,7 +416,7 @@
      :retain          (:retain output)
      :multi           (:multiplicity output)
      :environment     (filetool-env)
-     :executable      @filetool-path
+     :executable      (cfg/filetool-path)
      :arguments       (output-arguments
                        (:username condor-map)
                        (:name output)
@@ -493,11 +486,6 @@
     (make-abs-output (ut/add-trailing-slash (:source jdef))) 
     (:source jdef)))
 
-(defn parse-filter-files
-  "Parses the filter-files configuration option into a list."
-  []
-  (filterv #(not (string/blank? %)) (string/split @filter-files #",")))
-
 (defn exclude-arg
   "Formats the -exclude option for the filetool jobs based on the input and
    output job definitions."
@@ -509,7 +497,7 @@
         input-paths  (map input-coll (filter not-retain inputs))
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten
-                      (conj input-paths output-paths (parse-filter-files)))]
+                      (conj input-paths output-paths (cfg/filter-files)))]
     (if (pos? (count all-paths)) 
       (str "--exclude " (string/join "," all-paths)) 
       "")))
@@ -521,7 +509,7 @@
   {:id "imkdir"
    :status "Submitted"
    :environment (filetool-env)
-   :executable @filetool-path
+   :executable (cfg/filetool-path)
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
@@ -535,7 +523,7 @@
   (log/info "shotgun-job-map")
   {:id          "output-last"
    :status      "Submitted"
-   :executable  @filetool-path
+   :executable  (cfg/filetool-path)
    :environment (filetool-env)
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
