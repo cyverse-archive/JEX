@@ -8,12 +8,12 @@
 (defn json?
   "Returns true if a string is JSON."
   [json-string]
-  (if (try (cheshire/decode json-string) (catch Exception e false))
+  (if (try 
+        (cheshire/decode json-string) 
+        (catch Exception e false))
     true
     false))
 
 (defn valid?
   [json-map validators]
-  (every?
-    true?
-    (for [vd validators] (vd json-map))))
+  (every? true? (for [vd validators] (vd json-map))))

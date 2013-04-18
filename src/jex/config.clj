@@ -58,7 +58,7 @@
   [props config-valid configs]
   "jex.app.irods-zone")
 
-(cc/defprop-str irods-resc
+(cc/defprop-optstr irods-resc
   "Returns the iRODS resource."
   [props config-valid configs]
   "jex.app.irods-resc")

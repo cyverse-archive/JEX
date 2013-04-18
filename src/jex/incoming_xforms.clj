@@ -66,6 +66,10 @@
   [p]
   (-> p at-underscore space-underscore))
 
+(defn irods-config
+  [{working-dir :working_dir}]
+  (ut/path-join working-dir "logs/irods-config"))
+
 (defn analysis-attrs
   "Adds some basic top-level keys to condor-map that are needed for subsequent
    tranformations."
@@ -320,10 +324,11 @@
 
 (defn input-arguments
   "Formats the arguments to porklock for an input job."
-  [user source input-map]
-  (str "get --user " user
+  [condor-map source input-map]
+  (str "get --user " (:username condor-map)
        " --source " (quote-value
-                     (handle-source-path source (:multiplicity input-map)))))
+                     (handle-source-path source (:multiplicity input-map)))
+       " --config " (irods-config condor-map)))
 
 (defn input-iterator-vec
   "Returns a vector of vectors that make iterating over the input jobs in a
@@ -353,7 +358,7 @@
      :executable      (cfg/filetool-path)
      :environment     (filetool-env)
      :arguments       (input-arguments
-                       (:username condor-map)
+                       condor-map
                        (:value input)
                        input)
      :stdout          (input-stdout step-idx input-idx)
@@ -382,7 +387,8 @@
   [user source dest]
   (str "put --user " user
        " --source " (quote-value source)
-       " --destination " (quote-value dest)))
+       " --destination " (quote-value dest)
+       " --config logs/irods-config"))
 
 (defn output-id-str
   "Generates an identifier for output jobs based on the step index and the
@@ -519,7 +525,12 @@
 (defn shotgun-job-map
   "Formats a job definition for the output job that transfers
    all of the files back into iRODS after the analysis is complete."
-  [output-dir condor-log cinput-jobs coutput-jobs username]
+  [{output-dir   :output_dir 
+    condor-log   :condor-log-dir
+    cinput-jobs  :all-input-jobs
+    coutput-jobs :all-output-jobs
+    username     :username
+    :as condor-map}]
   (log/info "shotgun-job-map")
   {:id          "output-last"
    :status      "Submitted"
@@ -528,8 +539,9 @@
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
-   :arguments   (str "put --user " username " --destination " 
-                     (quote-value output-dir) 
+   :arguments   (str "put --user " username 
+                     " --config " (irods-config condor-map)
+                     " --destination " (quote-value output-dir) 
                      " " 
                      (exclude-arg cinput-jobs coutput-jobs))})
 
@@ -539,12 +551,7 @@
   [condor-map]
   (assoc condor-map 
     :final-output-job
-    (shotgun-job-map
-     (:output_dir condor-map)
-     (:condor-log-dir condor-map)
-     (:all-input-jobs condor-map)
-     (:all-output-jobs condor-map)
-     (:username condor-map))
+    (shotgun-job-map condor-map)
     
     :imkdir-job
     (imkdir-job-map

@@ -2,7 +2,23 @@
   (:use [clojure-commons.file-utils :as ut]
         [clojure.string :only (join)]
         [clojure.tools.logging :as log])
+  (:require [jex.config :as cfg])
   (:import [java.io File]))
+
+(defn irods-config 
+  []
+  (str "porklock.irods-host = " (cfg/irods-host) "\n"
+       "porklock.irods-port = " (cfg/irods-port) "\n"
+       "porklock.irods-user = " (cfg/irods-user) "\n"
+       "porklock.irods-pass = " (cfg/irods-pass) "\n"
+       "porklock.irods-home = " (cfg/irods-base) "\n"
+       "porklock.irods-zone = " (cfg/irods-zone) "\n"
+       "porklock.irods-resc = " (cfg/irods-resc) "\n"))
+
+(defn irods-config-path
+  "Generates the path to the irods-config file."
+  [{working-dir :working_dir}]
+  (ut/path-join working-dir "logs" "irods-config"))
 
 (defn script-output
   "Returns the path to the log containing the Condor logging
@@ -56,11 +72,9 @@
    and returns a list of the job definitions in the order that they
    should be executed in the shell script."
   [analysis-map]
-  (concat
-    [(:imkdir-job analysis-map)]
-    (:all-input-jobs analysis-map)
-    (:steps analysis-map)
-    [(:final-output-job analysis-map)]))
+  (concat (:all-input-jobs analysis-map)
+          (:steps analysis-map)
+          [(:final-output-job analysis-map)]))
 
 (defn script-line
   "Takes in a job definition and generates a section of the shell
@@ -82,21 +96,22 @@
    (jex.incoming-xforms/transform) and turns it into a shell script
    that will be run out on the Condor cluster. Needs refactoring."
   [analysis-map]
-  (let [job-uuid (:uuid analysis-map)
-        job-dir  (str "iplant-de-jobs/" (:username analysis-map) "/" job-uuid)]
+  (let [job-uuid  (:uuid analysis-map)
+        job-dir   (str "iplant-de-jobs/" (:username analysis-map) "/" job-uuid)
+        irods-cfg (irods-config-path analysis-map)]
     (str 
      "#!/bin/bash\n"
+     "IRODS_CONFIG=" irods-cfg "\n"
      "cd ~\n"
      "mkdir -p " job-dir "\n"
      "pushd " job-dir "\n"
-     "mkdir -p logs\n" 
+     "mkdir -p logs\n"
      "EXITSTATUS=0\n"
      (join "\n" (map script-line (jobs-in-order analysis-map)))
      "popd\n"
-     "rm -r " job-dir "\n"
+     #_("rm -r " job-dir "\n"
+     "rm -r " irods-cfg "\n")
      "exit $EXITSTATUS\n")))
-
-(defn irods-config-path [])
 
 (defn create-submission-directory
   "Creates the local directory where the iplant.sh and iplant.cmd files get
@@ -132,16 +147,11 @@
   [analysis-map]
   (ut/path-join (:working_dir analysis-map) "logs" "iplant.cmd"))
 
-(defn irods-config-path
-  "Generates the path to the irods-config file."
-  [{working-dir :working_dir}]
-  (ut/path-join working-dir "logs" "irods-config"))
-
 (defn generate-script-submission
   "Generates and writes out the iplant.sh and iplant.cmd files."
   [analysis-map]
   (spit (scriptpath analysis-map) (script analysis-map))
-    
+  (spit (irods-config-path analysis-map) (irods-config))
   (spit
    (script-command-file analysis-map)
    (script-submission
