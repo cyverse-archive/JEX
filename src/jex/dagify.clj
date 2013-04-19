@@ -101,7 +101,6 @@
         irods-cfg (irods-config-path analysis-map)]
     (str 
      "#!/bin/bash\n"
-     "IRODS_CONFIG=" irods-cfg "\n"
      "cd ~\n"
      "mkdir -p " job-dir "\n"
      "pushd " job-dir "\n"
@@ -109,8 +108,7 @@
      "EXITSTATUS=0\n"
      (join "\n" (map script-line (jobs-in-order analysis-map)))
      "popd\n"
-     #_("rm -r " job-dir "\n"
-     "rm -r " irods-cfg "\n")
+     "rm -r " job-dir "\n"
      "exit $EXITSTATUS\n")))
 
 (defn create-submission-directory

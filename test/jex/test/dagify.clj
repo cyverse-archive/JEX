@@ -47,8 +47,7 @@
    :all-input-jobs ["all-input-jobs"]
    :steps ["steps"]
    :final-output-job "final-output-job"}) =>
-   ["imkdir"
-    "all-input-jobs"
+   ["all-input-jobs"
     "steps"
     "final-output-job"])
 
@@ -112,10 +111,6 @@
   "pushd iplant-de-jobs/testuser/testuuid\n"
   "mkdir -p logs\n"
   "EXITSTATUS=0\n"
-  "imkdir-env imkdir-exec imkdir-args 1> imkdir-stdout 2> imkdir-stderr\n"
-  "if [ ! \"$?\" -eq \"0\" ]; then\n"
-  "\tEXITSTATUS=1\n"
-  "fi\n\n"
   "input-1-env input-1-exec input-1-args 1> input-1-stdout 2> input-1-stderr\n"
   "if [ ! \"$?\" -eq \"0\" ]; then\n"
   "\tEXITSTATUS=1\n"
@@ -247,10 +242,6 @@
   "pushd iplant-de-jobs/testuser/testuuid\n"
   "mkdir -p logs\n"
   "EXITSTATUS=0\n"
-  "imkdir-env imkdir-exec imkdir-args 1> imkdir-stdout 2> imkdir-stderr\n"
-  "if [ ! \"$?\" -eq \"0\" ]; then\n"
-  "\tEXITSTATUS=1\n"
-  "fi\n\n"
   "input-1-env input-1-exec input-1-args 1> input-1-stdout 2> input-1-stderr\n"
   "if [ ! \"$?\" -eq \"0\" ]; then\n"
   "\tEXITSTATUS=1\n"

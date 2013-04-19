@@ -1,6 +1,7 @@
 (ns jex.test.incoming-xforms
   (:use [jex.incoming-xforms] :reload)
-  (:use [midje.sweet]))
+  (:use [midje.sweet])
+  (:require [jex.config :as cfg]))
 
 (fact
  (replacer #"ll" "oo" "fll") => "foo"
@@ -36,42 +37,44 @@
 (fact
  (pathize "/foo bar/baz@blippy/") => "/foo_bar/baz_blippy/")
 
-(reset! run-on-nfs false)
-(reset! nfs-base "/tmp/nfs-base")
-(reset! irods-base "/tmp/irods-base")
-(reset! condor-log-path "/tmp/condor-log-path")
-
+(with-redefs [cfg/run-on-nfs      (fn [] false)
+              cfg/nfs-base        (fn [] "/tmp/nfs-base")
+              cfg/irods-base      (fn [] "/tmp/irods-base")
+              cfg/condor-log-path (fn [] "/tmp/condor-log-path")
+              cfg/filetool-path   (fn [] "/usr/local/bin/filetool")
+              cfg/icommands-path  (fn [] "/usr/local/bin")
+              cfg/filter-files    (fn [] ",foo,bar,baz,blippy,cow,bees,")]
 (defn epoch-func [] (java.util.Date. 0))
 
 (fact
- (analysis-attrs {:username "wregglej"} epoch-func) => {:run-on-nfs  @run-on-nfs
+ (analysis-attrs {:username "wregglej"} epoch-func) => {:run-on-nfs  (cfg/run-on-nfs)
                                                         :type "analysis"
                                                         :username "wregglej"
-                                                        :nfs_base @nfs-base
-                                                        :irods_base  @irods-base
+                                                        :nfs_base (cfg/nfs-base)
+                                                        :irods_base  (cfg/irods-base)
                                                         :submission_date 0}
- (analysis-attrs {:username "wr @lej"} epoch-func) => {:run-on-nfs @run-on-nfs
+ (analysis-attrs {:username "wr @lej"} epoch-func) => {:run-on-nfs (cfg/run-on-nfs)
                                                        :type "analysis"
                                                        :username "wr__lej"
-                                                       :nfs_base @nfs-base
-                                                       :irods_base @irods-base
+                                                       :nfs_base (cfg/nfs-base)
+                                                       :irods_base (cfg/irods-base)
                                                        :submission_date 0}
  (analysis-attrs {:username "wregglej" :type "foo"} epoch-func) =>
- {:run-on-nfs @run-on-nfs
+ {:run-on-nfs (cfg/run-on-nfs)
   :type "foo"
   :username "wregglej"
-  :nfs_base @nfs-base
-  :irods_base @irods-base
+  :nfs_base (cfg/nfs-base)
+  :irods_base (cfg/irods-base)
   :submission_date 0})
 
 (def out-dir-test-0
-  {:irods_base @irods-base
+  {:irods_base (cfg/irods-base)
    :username "wregglej"
    :name "out-dir-test-0"
    :now_date "1969-12-31-17-00-00.000"})
 
 (def out-dir-test-1
-  {:irods_base @irods-base
+  {:irods_base (cfg/irods-base)
    :username "wregglej"
    :output_dir ""
    :create_output_subdir true
@@ -79,7 +82,7 @@
    :now_date "1969-12-31-17-00-00.000"})
 
 (def out-dir-test-2
-  {:irods_base @irods-base
+  {:irods_base (cfg/irods-base)
    :username "wregglej"
    :now_date "1969-12-31-17-00-00.000"
    :name "out-dir-test-2"
@@ -87,7 +90,7 @@
    :output_dir ""})
 
 (def out-dir-test-3
-  {:irods_base @irods-base
+  {:irods_base (cfg/irods-base)
    :username "wregglej"
    :now_date "1969-12-31-17-00-00.000"
    :name "out-dir-test-3"
@@ -117,8 +120,8 @@
 
 (def context-dirs-map
   {:username "wregglej"
-   :nfs_base @nfs-base
-   :irods_base @irods-base
+   :nfs_base (cfg/nfs-base)
+   :irods_base (cfg/irods-base)
    :name "context-dirs-map"
    :create_output_subdir true
    :output_dir "/my/output-dir"
@@ -318,24 +321,21 @@
  (input-log-file "/tmp" 0 1) => "/tmp/logs/condor-0-input-1-log")
 
 (fact
- (input-arguments "foo" "/tmp/foo" {:multiplicity "collection"}) =>
- "get --user foo --source '/tmp/foo/'"
+ (input-arguments {:username "foo"} "/tmp/foo" {:multiplicity "collection"}) =>
+ "get --user foo --source '/tmp/foo/' --config logs/irods-config"
 
- (input-arguments "foo" "/tmp/foo" {:multiplicity "single"}) =>
- "get --user foo --source '/tmp/foo'"
+ (input-arguments {:username "foo"} "/tmp/foo" {:multiplicity "single"}) =>
+ "get --user foo --source '/tmp/foo' --config logs/irods-config"
 
- (input-arguments "foo" "/tmp/foo" {:multiplicity ""}) =>
- "get --user foo --source '/tmp/foo'"
+ (input-arguments {:username "foo"} "/tmp/foo" {:multiplicity ""}) =>
+ "get --user foo --source '/tmp/foo' --config logs/irods-config"
 
- (input-arguments "foo" "/tmp/foo" {}) =>
- "get --user foo --source '/tmp/foo'")
+ (input-arguments {:username "foo"} "/tmp/foo" {}) =>
+ "get --user foo --source '/tmp/foo' --config logs/irods-config")
 
 (fact
  (input-iterator-vec {:config {:input [{:step 1} {:step 2} {:step 3}]}}) =>
  [[0 {:step 1}] [1 {:step 2}] [2 {:step 3}]])
-
-(reset! filetool-path "/usr/local/bin/filetool")
-(reset! icommands-path "/usr/local/bin")
 
 (def input-condor-map
   {:submission_date 0
@@ -373,7 +373,7 @@
          :source "/tmp/source"
          :executable "/usr/local/bin/filetool"
          :environment "PATH=/usr/local/bin"
-         :arguments "get --user foo --source '/tmp/source/'"
+         :arguments "get --user foo --source '/tmp/source/' --config logs/irods-config"
          :stdout "logs/condor-0-input-0-stdout"
          :stderr "logs/condor-0-input-0-stderr"
          :log-file "/tmp/logs/condor-0-input-0-log"}
@@ -386,7 +386,7 @@
          :source "/tmp/source1"
          :executable "/usr/local/bin/filetool"
          :environment "PATH=/usr/local/bin"
-         :arguments "get --user foo --source '/tmp/source1'"
+         :arguments "get --user foo --source '/tmp/source1' --config logs/irods-config"
          :stdout "logs/condor-0-input-1-stdout"
          :stderr "logs/condor-0-input-1-stderr"
          :log-file "/tmp/logs/condor-0-input-1-log"}]))
@@ -405,7 +405,7 @@
        :source "/tmp/source"
        :executable "/usr/local/bin/filetool"
        :environment "PATH=/usr/local/bin"
-       :arguments "get --user foo --source '/tmp/source/'"
+       :arguments "get --user foo --source '/tmp/source/' --config logs/irods-config"
        :stdout "logs/condor-0-input-0-stdout"
        :stderr "logs/condor-0-input-0-stderr"
        :log-file "/tmp/logs/condor-0-input-0-log"}
@@ -418,7 +418,7 @@
        :source "/tmp/source1"
        :executable "/usr/local/bin/filetool"
        :environment "PATH=/usr/local/bin"
-       :arguments "get --user foo --source '/tmp/source1'"
+       :arguments "get --user foo --source '/tmp/source1' --config logs/irods-config"
        :stdout "logs/condor-0-input-1-stdout"
        :stderr "logs/condor-0-input-1-stderr"
        :log-file "/tmp/logs/condor-0-input-1-log"}])
@@ -448,7 +448,7 @@
        :source "/tmp/source"
        :executable "/usr/local/bin/filetool"
        :environment "PATH=/usr/local/bin"
-       :arguments "get --user foo --source '/tmp/source/'"
+       :arguments "get --user foo --source '/tmp/source/' --config logs/irods-config"
        :stdout "logs/condor-0-input-0-stdout"
        :stderr "logs/condor-0-input-0-stderr"
        :log-file "/tmp/logs/condor-0-input-0-log"}
@@ -461,7 +461,7 @@
        :source "/tmp/source1"
        :executable "/usr/local/bin/filetool"
        :environment "PATH=/usr/local/bin"
-       :arguments "get --user foo --source '/tmp/source1'"
+       :arguments "get --user foo --source '/tmp/source1' --config logs/irods-config"
        :stdout "logs/condor-0-input-1-stdout"
        :stderr "logs/condor-0-input-1-stderr"
        :log-file "/tmp/logs/condor-0-input-1-log"}])
@@ -476,7 +476,7 @@
 
 (fact
  (output-arguments "foo" "/tmp/source" "/tmp/dest") =>
- "put --user foo --source '/tmp/source' --destination '/tmp/dest'")
+ "put --user foo --source '/tmp/source' --destination '/tmp/dest' --config logs/irods-config")
 
 (fact
  (output-id-str 0 0) => "condor-0-output-0"
@@ -523,7 +523,7 @@
           :source "/tmp/source"
           :executable "/usr/local/bin/filetool"
           :environment "PATH=/usr/local/bin"
-          :arguments "put --user foo --source '/tmp/source' --destination '/tmp/output-dir'"
+          :arguments "put --user foo --source '/tmp/source' --destination '/tmp/output-dir' --config logs/irods-config"
           :dest "/tmp/output-dir"}
          {:id "condor-0-output-1"
           :submission_date 0
@@ -534,7 +534,7 @@
           :source "/tmp/source1"
           :executable "/usr/local/bin/filetool"
           :environment "PATH=/usr/local/bin"
-          :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir'"
+          :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir' --config logs/irods-config"
           :dest "/tmp/output-dir"}]))
 
 (fact
@@ -559,7 +559,7 @@
        :source "/tmp/source"
        :executable "/usr/local/bin/filetool"
        :environment "PATH=/usr/local/bin"
-       :arguments "put --user foo --source '/tmp/source' --destination '/tmp/output-dir'"
+       :arguments "put --user foo --source '/tmp/source' --destination '/tmp/output-dir' --config logs/irods-config"
        :dest "/tmp/output-dir"}
       {:id "condor-0-output-1"
        :submission_date 0
@@ -570,7 +570,7 @@
        :source "/tmp/source1"
        :executable "/usr/local/bin/filetool"
        :environment "PATH=/usr/local/bin"
-       :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir'"
+       :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir' --config logs/irods-config"
        :dest "/tmp/output-dir"}])}]))
 
 (fact
@@ -597,7 +597,7 @@
                :source "/tmp/source"
                :executable "/usr/local/bin/filetool"
                :environment "PATH=/usr/local/bin"
-               :arguments "put --user foo --source '/tmp/source' --destination '/tmp/output-dir'"
+               :arguments "put --user foo --source '/tmp/source' --destination '/tmp/output-dir' --config logs/irods-config"
                :dest "/tmp/output-dir"}
               {:id "condor-0-output-1"
                :submission_date 0
@@ -608,7 +608,7 @@
                :source "/tmp/source1"
                :executable "/usr/local/bin/filetool"
                :environment "PATH=/usr/local/bin"
-               :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir'"
+               :arguments "put --user foo --source '/tmp/source1' --destination '/tmp/output-dir' --config logs/irods-config"
                :dest "/tmp/output-dir"}])}])}))
 
 (fact
@@ -653,11 +653,6 @@
  (output-coll {:multi "single" :source "/tmp/source"}) => "/tmp/source"
  (output-coll {:multi "single" :source "tmp/source"}) => "tmp/source")
 
-(reset! filter-files ",foo,bar,baz,blippy,cow,bees,")
-
-(fact
- (parse-filter-files) => ["foo" "bar" "baz"  "blippy" "cow" "bees"])
-
 (def outjobs
   [{:retain true
     :multi "collection"
@@ -682,21 +677,14 @@
 
 (fact
  (exclude-arg injobs outjobs) =>
- "--exclude foo,bar,baz,blippy,cow,bees,/tmp/output-source1,'input-source1'")
+ "--exclude ,foo,bar,baz,blippy,cow,bees,,/tmp/output-source1,'input-source1'")
 
 (fact
- (imkdir-job-map "/tmp/output/" "/tmp/condor-log" "testuser") =>
- {:id "imkdir"
-  :status "Submitted"
-  :environment "PATH=/usr/local/bin"
-  :executable "/usr/local/bin/filetool"
-  :stderr "logs/imkdir-stderr"
-  :stdout "logs/imkdir-stdout"
-  :log-file "/tmp/condor-log/logs/imkdir-log"
-  :arguments "mkdir --user testuser --destination '/tmp/output/'"})
-
-(fact
- (shotgun-job-map "/tmp/output" "/tmp/condor-log" injobs outjobs "testuser") =>
+ (shotgun-job-map {:output_dir      "/tmp/output" 
+                   :condor-log-dir  "/tmp/condor-log" 
+                   :all-input-jobs  injobs 
+                   :all-output-jobs outjobs 
+                   :username        "testuser"}) =>
  {:id "output-last"
   :status "Submitted"
   :executable "/usr/local/bin/filetool"
@@ -705,7 +693,7 @@
   :stdout "logs/output-last-stdout"
   :log-file "/tmp/condor-log/logs/output-last-log"
   :arguments
-  "put --user testuser --destination '/tmp/output' --exclude foo,bar,baz,blippy,cow,bees,/tmp/output-source1,'input-source1'"})
+  "put --user testuser --config logs/irods-config --destination '/tmp/output' --exclude ,foo,bar,baz,blippy,cow,bees,,/tmp/output-source1,'input-source1'"})
 
 (def testmap
   {:output_dir "/tmp/output"
@@ -714,32 +702,30 @@
    :all-output-jobs outjobs
    :username "testuser"})
 
-(fact
- (extra-jobs testmap) =>
- {:output_dir "/tmp/output"
-  :condor-log-dir "/tmp/condor-log"
-  :all-input-jobs injobs
-  :all-output-jobs outjobs
-  :username "testuser"
-  :imkdir-job
-  {:id "imkdir"
-   :status "Submitted"
-   :environment "PATH=/usr/local/bin"
-   :executable "/usr/local/bin/filetool"
-   :stderr "logs/imkdir-stderr"
-   :stdout "logs/imkdir-stdout"
-   :log-file "/tmp/condor-log/logs/imkdir-log"
-   :arguments "mkdir --user testuser --destination '/tmp/output'"}
-  :final-output-job
-  {:id "output-last"
-   :status "Submitted"
-   :executable "/usr/local/bin/filetool"
-   :environment "PATH=/usr/local/bin"
-   :stderr "logs/output-last-stderr"
-   :stdout "logs/output-last-stdout"
-   :log-file "/tmp/condor-log/logs/output-last-log"
-   :arguments
-   "put --user testuser --destination '/tmp/output' --exclude foo,bar,baz,blippy,cow,bees,/tmp/output-source1,'input-source1'"}})
+
+(facts
+ (extra-jobs testmap) => (contains {:output_dir "/tmp/output"})
+ (extra-jobs testmap) => (contains {:condor-log-dir "/tmp/condor-log"})
+ (extra-jobs testmap) => (contains {:all-input-jobs injobs})
+ (extra-jobs testmap) => (contains {:all-output-jobs outjobs})
+ (extra-jobs testmap) => (contains {:username "testuser"})
+ (extra-jobs testmap) => (contains {:imkdir-job map?})
+ (:imkdir-job (extra-jobs testmap)) => (contains {:id "imkdir"})
+ (:imkdir-job (extra-jobs testmap)) => (contains {:status "Submitted"})
+ (:imkdir-job (extra-jobs testmap)) => (contains {:environment "PATH=/usr/local/bin"})
+ (:imkdir-job (extra-jobs testmap)) => (contains {:executable "/usr/local/bin/filetool"})
+ (:imkdir-job (extra-jobs testmap)) => (contains {:stderr "logs/imkdir-stderr"})
+ (:imkdir-job (extra-jobs testmap)) => (contains {:stdout "logs/imkdir-stdout"})
+ (:imkdir-job (extra-jobs testmap)) => (contains {:log-file "/tmp/condor-log/logs/imkdir-log"})
+ (:imkdir-job (extra-jobs testmap)) => (contains {:arguments "mkdir --user testuser --destination '/tmp/output'"})
+ (:final-output-job (extra-jobs testmap)) => (contains {:id "output-last"})
+ (:final-output-job (extra-jobs testmap)) => (contains {:status "Submitted"})
+ (:final-output-job (extra-jobs testmap)) => (contains {:executable "/usr/local/bin/filetool"})
+ (:final-output-job (extra-jobs testmap)) => (contains {:environment "PATH=/usr/local/bin"})
+ (:final-output-job (extra-jobs testmap)) => (contains {:stderr "logs/output-last-stderr"})
+ (:final-output-job (extra-jobs testmap)) => (contains {:stdout "logs/output-last-stdout"})
+ (:final-output-job (extra-jobs testmap)) => (contains {:log-file "/tmp/condor-log/logs/output-last-log"})
+ (:final-output-job (extra-jobs testmap)) => (contains {:arguments "put --user testuser --config logs/irods-config --destination '/tmp/output' --exclude ,foo,bar,baz,blippy,cow,bees,,/tmp/output-source1,'input-source1'"}))
 
 (fact
  (rm-step-component
@@ -823,7 +809,7 @@
   :environment "PATH=/usr/local/bin"
   :submission_date 0
   :status "Submitted"
-  :arguments "get --user wregglej --source '/tmp/source/'"
+  :arguments "get --user wregglej --source '/tmp/source/' --config /tmp/nfs-base/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/irods-config"
   :type "condor"
   :source "/tmp/source"
   :stderr "logs/condor-0-input-0-stderr"
@@ -838,7 +824,7 @@
   :environment "PATH=/usr/local/bin"
   :submission_date 0
   :status "Submitted"
-  :arguments "get --user wregglej --source '/tmp/source1'"
+  :arguments "get --user wregglej --source '/tmp/source1' --config /tmp/nfs-base/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/irods-config"
   :type "condor"
   :source "/tmp/source1"
   :stderr "logs/condor-0-input-1-stderr"
@@ -853,7 +839,7 @@
   :environment "PATH=/usr/local/bin"
   :submission_date 0
   :status "Submitted"
-  :arguments "get --user wregglej --source '/tmp/source2/'"
+  :arguments "get --user wregglej --source '/tmp/source2/' --config /tmp/nfs-base/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/irods-config"
   :type "condor"
   :source "/tmp/source2"
   :stderr "logs/condor-1-input-0-stderr"
@@ -868,7 +854,7 @@
   :environment "PATH=/usr/local/bin"
   :submission_date 0
   :status "Submitted"
-  :arguments "get --user wregglej --source '/tmp/source3'"
+  :arguments "get --user wregglej --source '/tmp/source3' --config /tmp/nfs-base/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/irods-config"
   :type "condor"
   :source "/tmp/source3"
   :stderr "logs/condor-1-input-1-stderr"
@@ -883,7 +869,7 @@
   :environment "PATH=/usr/local/bin"
   :submission_date 0
   :status "Submitted"
-  :arguments "put --user wregglej --source '/tmp/output1' --destination '/tmp/output/final-test-map-1969-12-31-17-00-00.000'"
+  :arguments "put --user wregglej --source '/tmp/output1' --destination '/tmp/output/final-test-map-1969-12-31-17-00-00.000' --config logs/irods-config"
   :type "condor"
   :multi "collection"
   :source "/tmp/output1"
@@ -896,7 +882,7 @@
   :environment "PATH=/usr/local/bin"
   :submission_date 0
   :status "Submitted"
-  :arguments "put --user wregglej --source '/tmp/output2' --destination '/tmp/output/final-test-map-1969-12-31-17-00-00.000'"
+  :arguments "put --user wregglej --source '/tmp/output2' --destination '/tmp/output/final-test-map-1969-12-31-17-00-00.000' --config logs/irods-config"
   :type "condor"
   :source "/tmp/output2"
   :dest "/tmp/output/final-test-map-1969-12-31-17-00-00.000"
@@ -936,7 +922,9 @@
  (:stderr second-step) => "logs/condor-stderr-1"
  (:stdout second-step) => "logs/condor-stdout-1"
  (:log-file second-step) =>
- "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/condor-log-1")
+ "/tmp/condor-log-path/wregglej/final-test-map-1969-12-31-17-00-00.000/logs/condor-log-1"))
+
+
 
 
 
