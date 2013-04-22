@@ -522,6 +522,30 @@
    :arguments (str "mkdir --user " username
                    " --destination " (quote-value output-dir))})
 
+(defn meta-analysis-id
+  [{analysis-id :analysis_id :as condor-map}]
+  (if-not (nil? analysis-id)
+    (assoc condor-map :file-metadata 
+           (conj (:file-metadata condor-map) 
+                 {:attr  "ipc-analysis-id"
+                  :value analysis-id
+                  :unit  "UUID"}))
+    condor-map))
+
+(defn meta-app-execution
+  [{uuid :uuid :as condor-map}]
+  (if-not (nil? uuid)
+    (assoc condor-map :file-metadata
+           (conj (:file-metadata condor-map)
+                 {:attr "ipc-execution-id"
+                  :value uuid
+                  :unit "UUID"}))
+    condor-map))
+
+(defn add-analysis-metadata
+  [{analysis-id :analysis_id uuid :uuid :as condor-map}]
+  (-> condor-map meta-analysis-id meta-app-execution))
+
 (defn file-metadata-arg
   [meta-seq]
   (let [args (atom "")]
@@ -599,6 +623,7 @@
          output-jobs
          all-input-jobs
          all-output-jobs
+         add-analysis-metadata
          extra-jobs
          rm-step-component
          rm-step-config)))

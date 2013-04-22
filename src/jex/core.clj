@@ -26,8 +26,8 @@
   "Handles a request on /. "
   [request]
   (let [body (:body request)]
-    (log/info "Received job request:")
-    (log/info (cheshire/encode body))
+    (log/warn "Received job request:")
+    (log/warn (cheshire/encode body))
 
     (if (jp/validate-submission body)
       (let [[exit-code dag-id doc-id] (jp/submit body)]
