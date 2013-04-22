@@ -46,26 +46,27 @@
               cfg/filter-files    (fn [] ",foo,bar,baz,blippy,cow,bees,")]
 (defn epoch-func [] (java.util.Date. 0))
 
-(fact
- (analysis-attrs {:username "wregglej"} epoch-func) => {:run-on-nfs  (cfg/run-on-nfs)
-                                                        :type "analysis"
-                                                        :username "wregglej"
-                                                        :nfs_base (cfg/nfs-base)
-                                                        :irods_base  (cfg/irods-base)
-                                                        :submission_date 0}
- (analysis-attrs {:username "wr @lej"} epoch-func) => {:run-on-nfs (cfg/run-on-nfs)
-                                                       :type "analysis"
-                                                       :username "wr__lej"
-                                                       :nfs_base (cfg/nfs-base)
-                                                       :irods_base (cfg/irods-base)
-                                                       :submission_date 0}
- (analysis-attrs {:username "wregglej" :type "foo"} epoch-func) =>
- {:run-on-nfs (cfg/run-on-nfs)
-  :type "foo"
-  :username "wregglej"
-  :nfs_base (cfg/nfs-base)
-  :irods_base (cfg/irods-base)
-  :submission_date 0})
+(facts
+ (analysis-attrs {:username "wregglej"} epoch-func) => (contains {:run-on-nfs  (cfg/run-on-nfs)})
+ (analysis-attrs {:username "wregglej"} epoch-func) => (contains {:type "analysis"})
+ (analysis-attrs {:username "wregglej"} epoch-func) => (contains {:username "wregglej"})
+ (analysis-attrs {:username "wregglej"} epoch-func) => (contains {:nfs_base (cfg/nfs-base)})
+ (analysis-attrs {:username "wregglej"} epoch-func) => (contains {:irods_base (cfg/irods-base)})
+ (analysis-attrs {:username "wregglej"} epoch-func) => (contains {:submission_date 0})
+ 
+ (analysis-attrs {:username "wr @lej"} epoch-func) => (contains {:run-on-nfs (cfg/run-on-nfs)})
+ (analysis-attrs {:username "wr @lej"} epoch-func) => (contains {:type "analysis"})
+ (analysis-attrs {:username "wr @lej"} epoch-func) => (contains {:username "wr__lej"})
+ (analysis-attrs {:username "wr @lej"} epoch-func) => (contains {:nfs_base (cfg/nfs-base)})
+ (analysis-attrs {:username "wr @lej"} epoch-func) => (contains {:irods_base (cfg/irods-base)})
+ (analysis-attrs {:username "wr @lej"} epoch-func) => (contains {:submission_date 0})
+ 
+ (analysis-attrs {:username "wregglej" :type "foo"} epoch-func) => (contains {:run-on-nfs (cfg/run-on-nfs)})
+ (analysis-attrs {:username "wregglej" :type "foo"} epoch-func) => (contains {:type "foo"})
+ (analysis-attrs {:username "wregglej" :type "foo"} epoch-func) => (contains {:username "wregglej"})
+ (analysis-attrs {:username "wregglej" :type "foo"} epoch-func) => (contains {:nfs_base (cfg/nfs-base)})
+ (analysis-attrs {:username "wregglej" :type "foo"} epoch-func) => (contains {:irods_base (cfg/irods-base)})
+ (analysis-attrs {:username "wregglej" :type "foo"} epoch-func) => (contains {:submission_date 0}))
 
 (def out-dir-test-0
   {:irods_base (cfg/irods-base)
