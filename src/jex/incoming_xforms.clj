@@ -522,14 +522,23 @@
    :arguments (str "mkdir --user " username
                    " --destination " (quote-value output-dir))})
 
+(defn file-metadata-arg
+  [meta-seq]
+  (let [args (atom "")]
+    (doseq [m meta-seq]
+      (reset! args (str @args (str " -m '" (string/join "," [(:attr m) (:value m) (:unit m)]) "'"))))
+    @args))
+
 (defn shotgun-job-map
   "Formats a job definition for the output job that transfers
    all of the files back into iRODS after the analysis is complete."
-  [{output-dir   :output_dir 
-    condor-log   :condor-log-dir
-    cinput-jobs  :all-input-jobs
-    coutput-jobs :all-output-jobs
-    username     :username
+  [{output-dir    :output_dir 
+    condor-log    :condor-log-dir
+    cinput-jobs   :all-input-jobs
+    coutput-jobs  :all-output-jobs
+    username      :username
+    file-metadata :file-metadata
+    :or {file-metadata []}
     :as condor-map}]
   (log/info "shotgun-job-map")
   {:id          "output-last"
@@ -541,7 +550,8 @@
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
    :arguments   (str "put --user " username 
                      " --config " (irods-config condor-map)
-                     " --destination " (quote-value output-dir) 
+                     " --destination " (quote-value output-dir)
+                     (file-metadata-arg file-metadata)
                      " " 
                      (exclude-arg cinput-jobs coutput-jobs))})
 
