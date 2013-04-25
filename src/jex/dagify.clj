@@ -108,7 +108,7 @@
      "EXITSTATUS=0\n"
      (join "\n" (map script-line (jobs-in-order analysis-map)))
      "popd\n"
-     "rm -r " job-dir "\n"
+     #_("rm -r " job-dir "\n")
      "exit $EXITSTATUS\n")))
 
 (defn create-submission-directory

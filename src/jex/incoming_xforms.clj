@@ -127,6 +127,13 @@
       (ut/rm-last-slash
        (ut/path-join irods-base username "analyses" analysis-dir)))))
 
+(defn file-metadata-arg
+  [meta-seq]
+  (let [args (atom "")]
+    (doseq [m meta-seq]
+      (reset! args (str @args (str " -m '" (string/join "," [(:attr m) (:value m) (:unit m)]) "'"))))
+    @args))
+
 (defn context-dirs
   "Adds the :output_dir :working_dir and :condor-log-dir keys to the condor-map.
    These values are calculated using values that were added by (analysis-attrs)."
@@ -325,10 +332,12 @@
 (defn input-arguments
   "Formats the arguments to porklock for an input job."
   [condor-map source input-map]
-  (str "get --user " (:username condor-map)
-       " --source " (quote-value
-                     (handle-source-path source (:multiplicity input-map)))
-       " --config " (irods-config condor-map)))
+  (let [file-metadata (or (:file-metadata condor-map) [])] 
+    (str "get --user " (:username condor-map)
+         " --source " (quote-value
+                        (handle-source-path source (:multiplicity input-map)))
+         " --config " (irods-config condor-map)
+         (file-metadata-arg file-metadata))))
 
 (defn input-iterator-vec
   "Returns a vector of vectors that make iterating over the input jobs in a
@@ -546,13 +555,6 @@
   [{analysis-id :analysis_id uuid :uuid :as condor-map}]
   (-> condor-map meta-analysis-id meta-app-execution))
 
-(defn file-metadata-arg
-  [meta-seq]
-  (let [args (atom "")]
-    (doseq [m meta-seq]
-      (reset! args (str @args (str " -m '" (string/join "," [(:attr m) (:value m) (:unit m)]) "'"))))
-    @args))
-
 (defn shotgun-job-map
   "Formats a job definition for the output job that transfers
    all of the files back into iRODS after the analysis is complete."
@@ -618,12 +620,12 @@
          (now-date date-func)
          (analysis-attrs date-func)
          context-dirs
+         add-analysis-metadata
          steps
          input-jobs
          output-jobs
          all-input-jobs
          all-output-jobs
-         add-analysis-metadata
          extra-jobs
          rm-step-component
          rm-step-config)))
