@@ -27,6 +27,13 @@ The JEX has a single endpoint, "/", which takes JSON in the following format (ke
         "create_output_subdir" : true,
         "description" : "",
         "analysis_description" : "Counts the number of words, characters, and bytes in a file",
+        "file-metadata" : [
+            {
+                "attr" : "example-attribute",
+                "value" : "example-value",
+                "unit" : "example-unit"
+            }
+        ],
         "steps" : [
             {
                 "name" : "step_1",

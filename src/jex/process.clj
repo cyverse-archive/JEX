@@ -4,10 +4,11 @@
   (:require [jex.incoming-xforms :as ix]
             [jex.outgoing-xforms :as ox]
             [jex.dagify :as dagify]
+            [jex.config :as cfg]
             [clojure.tools.logging :as log]
             [clojure.java.shell :as sh]
             [clojure-commons.osm :as osm]
-            [clojure.data.json :as json]))
+            [cheshire.core :as cheshire]))
 
 (defn failure [reason]
   {:status "failure" :reason reason})
@@ -15,28 +16,12 @@
 (defn success []
   {:status "success"})
 
-(def props (atom nil))
-
-;Converts a string to a boolean.
-(def boolize #(boolean (Boolean. %)))
-
-(defn init
-  [app-props]
-  (reset! props app-props)
-  (reset! ix/filetool-path (get @props "jex.app.filetool-path"))
-  (reset! ix/icommands-path (get @props "jex.app.icommands-path"))
-  (reset! ix/condor-log-path (get @props "jex.app.condor-log-path"))
-  (reset! ix/nfs-base (get @props "jex.app.nfs-base"))
-  (reset! ix/irods-base (get @props "jex.app.irods-base"))
-  (reset! ix/filter-files (get @props "jex.app.filter-files"))
-  (reset! ix/run-on-nfs (or (boolize (get @props "jex.app.run-on-nfs")) false)))
-
 (def validators
   [#(string? (:uuid %))
    #(string? (:username %))
    #(string? (:name %))
    #(sequential? (:steps %))
-   #(every? true? 
+   #(every? true?
             (for [step (:steps %)]
               (every? true?
                       [(map? (:config step))
@@ -49,16 +34,15 @@
   [submit-map]
   (valid? submit-map validators))
 
-(defn condor-env
-  []
-  {"PATH" (get @props "jex.env.path")
-   "CONDOR_CONFIG" (get @props "jex.env.condor-config")})
+(defn condor-env []
+  {"PATH"          (cfg/path-env)
+   "CONDOR_CONFIG" (cfg/condor-config)})
 
 (defn create-osm-record
   "Creates a new record in the OSM, associates the notification-url with it as a
    callback, and returns the OSM document ID in a string."
   [osm-client]
-  (let [notif-url (get @props "jex.osm.notification-url")
+  (let [notif-url (cfg/notif-url)
         doc-id    (osm/save-object osm-client {})
         result    (osm/add-callback osm-client doc-id "on_update" notif-url)]
     (log/warn result)
@@ -69,26 +53,16 @@
   [sub-id]
   (sh/with-sh-env (condor-env) (sh/sh "condor_rm" sub-id)))
 
-(defn osm-url
-  "Returns the OSM URL."
-  []
-  (get @props "jex.osm.url"))
-
-(defn osm-coll
-  "Returns the collection in the OSM that the JEX should use."
-  []
-  (get @props "jex.osm.collection"))
-
 (defn extract-state-from-result
   "Extracts the state from the JSON returned by the OSM."
   [result-map]
-  (-> result-map json/read-json :objects first :state))
+  (-> result-map (cheshire/decode true) :objects first :state))
 
 (defn query-for-analysis
   "Queries the OSM for the document representing a particular analysis."
   [uuid]
   (osm/query
-   (osm/create (osm-url) (osm-coll))
+   (osm/create (cfg/osm-url) (cfg/osm-coll))
    {:state.uuid uuid}))
 
 (defn missing-condor-id
@@ -99,10 +73,10 @@
 
 (defn get-job-sub-id
   [uuid]
-  (let [osm-url    (get @props "jex.osm.url")
-        osm-coll   (get @props "jex.osm.collection")
-        osm-client (osm/create osm-url osm-coll)
-        result (json/read-json (osm/query osm-client {:state.uuid uuid}))]
+  (let [osm-client (osm/create (cfg/osm-url) (cfg/osm-coll))
+        result     (cheshire/decode
+                    (osm/query osm-client {:state.uuid uuid})
+                    true)]
     (when-not result
       (throw+ (missing-condor-id uuid)))
 
@@ -131,7 +105,7 @@
       (let [{:keys [exit out err]} (condor-rm sub-id)]
         (when-not (= exit 0)
           (log/debug (str "condor-rm status was: " exit))
-          (throw+ {:error_code "ERR_FAILED_NON_ZERO" 
+          (throw+ {:error_code "ERR_FAILED_NON_ZERO"
                    :sub_id sub-id
                    :out out
                    :err err})))
@@ -159,11 +133,11 @@
   (when-not (contains? param-obj :params)
     (throw+ {:error_code "ERR_INVALID_JSON"
              :message "Missing params key."}))
-  
+
   (when-not (every? true? (map param? (:params param-obj)))
     (throw+ {:error_code "ERR_INVALID_JSON"
              :message "Objects must have 'name', 'value', and 'order' keys."}))
-  
+
   (hash-map :params (ix/escape-params (ix/param-maps (:params param-obj)))))
 
 (defn log-submit-results
@@ -196,7 +170,7 @@
 (defn push-failed-submit-to-osm
   "Pushes out the analysis map to OSM after marking it as Failed."
   [output-map]
-  (let [osm-client (osm/create (osm-url) (osm-coll))
+  (let [osm-client (osm/create (cfg/osm-url) (cfg/osm-coll))
         doc-id     (create-osm-record osm-client)]
     (osm/update-object osm-client doc-id (assoc output-map :status "Failed"))
     doc-id))
@@ -205,7 +179,7 @@
   "Pushes out the analysis map to the OSM. It's marked as Submitted at this
    point."
   [output-map]
-  (let [osm-client (osm/create (osm-url) (osm-coll))
+  (let [osm-client (osm/create (cfg/osm-url) (cfg/osm-coll))
         doc-id     (create-osm-record osm-client)]
     (osm/update-object osm-client doc-id output-map)
     doc-id))
@@ -224,7 +198,7 @@
   [submit-map]
   (let [result (-> submit-map ix/transform dagify/dagify)]
     (log/info "Output map:")
-    (log/info (json/json-str (last result)))
+    (log/info (cheshire/encode (last result)))
     result))
 
 (defn condor-submit
@@ -240,7 +214,7 @@
    job to the Condor cluster, applies outgoing transformations, and dumps the
    resulting map to the OSM."
   [submit-map]
-  (let [[sub-path updated-map] (generate-submission submit-map) 
+  (let [[sub-path updated-map] (generate-submission submit-map)
         sub-result (condor-submit sub-path)
         sub-id     (submission-id sub-result)
         doc-id     (push-submission-info-to-osm

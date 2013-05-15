@@ -1,15 +1,8 @@
 (ns jex.incoming-xforms
   (:require [clojure.string :as string]
             [clojure.tools.logging :as log]
-            [clojure-commons.file-utils :as ut]))
-
-(def filetool-path (atom ""))
-(def icommands-path (atom ""))
-(def condor-log-path (atom ""))
-(def nfs-base (atom ""))
-(def irods-base (atom ""))
-(def filter-files (atom ""))
-(def run-on-nfs (atom false))
+            [clojure-commons.file-utils :as ut]
+            [jex.config :as cfg]))
 
 (def replacer
   "Params: [regex replace-str str-to-modify]."
@@ -48,7 +41,7 @@
 (defn filetool-env
   "Creates the filetool environment variables."
   [] 
-  (str "PATH=" @icommands-path))
+  (str "PATH=" (cfg/icommands-path)))
 
 (defn analysis-dirname
   "Creates a directory name for an analysis. Used when the submission
@@ -73,6 +66,10 @@
   [p]
   (-> p at-underscore space-underscore))
 
+(defn irods-config
+  [{working-dir :working_dir}]
+  (ut/path-join working-dir "logs/irods-config"))
+
 (defn analysis-attrs
   "Adds some basic top-level keys to condor-map that are needed for subsequent
    tranformations."
@@ -80,11 +77,11 @@
      (analysis-attrs condor-map date))
   ([condor-map date-func]
      (assoc condor-map
-       :run-on-nfs @run-on-nfs
+       :run-on-nfs (cfg/run-on-nfs)
        :type (or (:type condor-map) "analysis")
        :username (pathize (:username condor-map))
-       :nfs_base @nfs-base
-       :irods_base @irods-base
+       :nfs_base (cfg/nfs-base)
+       :irods_base (cfg/irods-base)
        :submission_date (.getTime (date-func)))))
 
 (defn output-directory
@@ -130,6 +127,13 @@
       (ut/rm-last-slash
        (ut/path-join irods-base username "analyses" analysis-dir)))))
 
+(defn file-metadata-arg
+  [meta-seq]
+  (let [args (atom "")]
+    (doseq [m meta-seq]
+      (reset! args (str @args (str " -m '" (string/join "," [(:attr m) (:value m) (:unit m)]) "'"))))
+    @args))
+
 (defn context-dirs
   "Adds the :output_dir :working_dir and :condor-log-dir keys to the condor-map.
    These values are calculated using values that were added by (analysis-attrs)."
@@ -141,7 +145,7 @@
                       (:now_date condor-map))
         log-dir (ut/add-trailing-slash
                       (ut/path-join
-                       @condor-log-path
+                       (cfg/condor-log-path)
                        username
                        analysis-dir))
         output-dir   (output-directory condor-map)
@@ -327,10 +331,13 @@
 
 (defn input-arguments
   "Formats the arguments to porklock for an input job."
-  [user source input-map]
-  (str "get --user " user
-       " --source " (quote-value
-                     (handle-source-path source (:multiplicity input-map)))))
+  [condor-map source input-map]
+  (let [file-metadata (or (:file-metadata condor-map) [])] 
+    (str "get --user " (:username condor-map)
+         " --source " (quote-value
+                        (handle-source-path source (:multiplicity input-map)))
+         " --config " (irods-config condor-map)
+         (file-metadata-arg file-metadata))))
 
 (defn input-iterator-vec
   "Returns a vector of vectors that make iterating over the input jobs in a
@@ -357,10 +364,10 @@
      :retain          (:retain input)
      :multi           (:multiplicity input)
      :source          (:value input)
-     :executable      @filetool-path
+     :executable      (cfg/filetool-path)
      :environment     (filetool-env)
      :arguments       (input-arguments
-                       (:username condor-map)
+                       condor-map
                        (:value input)
                        input)
      :stdout          (input-stdout step-idx input-idx)
@@ -389,7 +396,8 @@
   [user source dest]
   (str "put --user " user
        " --source " (quote-value source)
-       " --destination " (quote-value dest)))
+       " --destination " (quote-value dest)
+       " --config logs/irods-config"))
 
 (defn output-id-str
   "Generates an identifier for output jobs based on the step index and the
@@ -423,7 +431,7 @@
      :retain          (:retain output)
      :multi           (:multiplicity output)
      :environment     (filetool-env)
-     :executable      @filetool-path
+     :executable      (cfg/filetool-path)
      :arguments       (output-arguments
                        (:username condor-map)
                        (:name output)
@@ -493,11 +501,6 @@
     (make-abs-output (ut/add-trailing-slash (:source jdef))) 
     (:source jdef)))
 
-(defn parse-filter-files
-  "Parses the filter-files configuration option into a list."
-  []
-  (filterv #(not (string/blank? %)) (string/split @filter-files #",")))
-
 (defn exclude-arg
   "Formats the -exclude option for the filetool jobs based on the input and
    output job definitions."
@@ -509,7 +512,7 @@
         input-paths  (map input-coll (filter not-retain inputs))
         output-paths (map output-coll (filter not-retain outputs))
         all-paths    (flatten
-                      (conj input-paths output-paths (parse-filter-files)))]
+                      (conj input-paths output-paths (cfg/filter-files)))]
     (if (pos? (count all-paths)) 
       (str "--exclude " (string/join "," all-paths)) 
       "")))
@@ -521,27 +524,60 @@
   {:id "imkdir"
    :status "Submitted"
    :environment (filetool-env)
-   :executable @filetool-path
+   :executable (cfg/filetool-path)
    :stderr "logs/imkdir-stderr"
    :stdout "logs/imkdir-stdout"
    :log-file (ut/path-join condor-log "logs" "imkdir-log")
    :arguments (str "mkdir --user " username
                    " --destination " (quote-value output-dir))})
 
+(defn meta-analysis-id
+  [{analysis-id :analysis_id :as condor-map}]
+  (if-not (nil? analysis-id)
+    (assoc condor-map :file-metadata 
+           (conj (:file-metadata condor-map) 
+                 {:attr  "ipc-analysis-id"
+                  :value analysis-id
+                  :unit  "UUID"}))
+    condor-map))
+
+(defn meta-app-execution
+  [{uuid :uuid :as condor-map}]
+  (if-not (nil? uuid)
+    (assoc condor-map :file-metadata
+           (conj (:file-metadata condor-map)
+                 {:attr "ipc-execution-id"
+                  :value uuid
+                  :unit "UUID"}))
+    condor-map))
+
+(defn add-analysis-metadata
+  [{analysis-id :analysis_id uuid :uuid :as condor-map}]
+  (-> condor-map meta-analysis-id meta-app-execution))
+
 (defn shotgun-job-map
   "Formats a job definition for the output job that transfers
    all of the files back into iRODS after the analysis is complete."
-  [output-dir condor-log cinput-jobs coutput-jobs username]
+  [{output-dir    :output_dir 
+    condor-log    :condor-log-dir
+    cinput-jobs   :all-input-jobs
+    coutput-jobs  :all-output-jobs
+    username      :username
+    file-metadata :file-metadata
+    :or {file-metadata []}
+    :as condor-map}]
   (log/info "shotgun-job-map")
   {:id          "output-last"
    :status      "Submitted"
-   :executable  @filetool-path
+   :executable  (cfg/filetool-path)
    :environment (filetool-env)
    :stderr      "logs/output-last-stderr"
    :stdout      "logs/output-last-stdout"
    :log-file    (ut/path-join condor-log "logs" "output-last-log")
-   :arguments   (str "put --user " username " --destination " 
-                     (quote-value output-dir) 
+   :arguments   (str "put --user " username 
+                     " --config " (irods-config condor-map)
+                     " --destination " (quote-value output-dir)
+                     (file-metadata-arg file-metadata)
                      " " 
                      (exclude-arg cinput-jobs coutput-jobs))})
 
@@ -551,12 +587,7 @@
   [condor-map]
   (assoc condor-map 
     :final-output-job
-    (shotgun-job-map
-     (:output_dir condor-map)
-     (:condor-log-dir condor-map)
-     (:all-input-jobs condor-map)
-     (:all-output-jobs condor-map)
-     (:username condor-map))
+    (shotgun-job-map condor-map)
     
     :imkdir-job
     (imkdir-job-map
@@ -589,6 +620,7 @@
          (now-date date-func)
          (analysis-attrs date-func)
          context-dirs
+         add-analysis-metadata
          steps
          input-jobs
          output-jobs
