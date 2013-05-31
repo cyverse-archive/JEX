@@ -86,7 +86,7 @@
         args   (:arguments job-def)
         stderr (:stderr job-def)
         stdout (:stdout job-def)]
-    (str env " " exec " " args " 1> " stdout " 2> " stderr "\n"
+    (str env " " exec " " args #_(" 1> " stdout " 2> " stderr) "\n"
          "if [ ! \"$?\" -eq \"0\" ]; then\n"
              "\tEXITSTATUS=1\n"
          "fi\n")))

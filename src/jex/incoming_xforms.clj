@@ -577,6 +577,7 @@
    :arguments   (str "put --user " username 
                      " --config " (irods-config condor-map)
                      " --destination " (quote-value output-dir)
+                     (if (:skip-parent-meta condor-map) " --skip-parent-meta" "")
                      (file-metadata-arg file-metadata)
                      " " 
                      (exclude-arg cinput-jobs coutput-jobs))})
