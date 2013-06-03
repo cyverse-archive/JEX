@@ -220,4 +220,5 @@
         doc-id     (push-submission-info-to-osm
                     (xform-map-for-osm updated-map sub-id)
                     sub-result)]
+    (log/warn "Submitted Job:" sub-id "OSM doc:" doc-id)
     [(:exit sub-result) sub-id doc-id]))
