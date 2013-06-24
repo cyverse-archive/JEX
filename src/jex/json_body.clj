@@ -10,6 +10,13 @@
   (let [content-type (:content-type request)]
     (not (empty? (re-find #"^application/json" content-type)))))
 
+(defn get-json
+  [request]
+  (try
+    (cheshire/decode-stream (reader (:body request)) true)
+    (catch Exception e
+            (throw+ {:error_code ERR_INVALID_JSON}))))
+
 (defn- valid-method?
   [request]
   (cond
@@ -33,7 +40,7 @@
 
       :else
       (try+
-        (let [body-map (cheshire/decode-stream (reader (:body request)) true)
+        (let [body-map (get-json request)
               new-req  (assoc request :body body-map)]
           (handler new-req))
         (catch error? err
