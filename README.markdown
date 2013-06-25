@@ -118,6 +118,12 @@ An error will result in a 500 HTTP error code and a stack-trace wrapped in JSON:
         "message" : "Error message",
         "stack-trace" : "stacktrace here"
     }
+    
+An error can also result in JSON in the following format along with a 500 status code:
+
+    {
+        "error_code" : "<an error code>"
+    }
 
 Redirecting stdout and stderr
 -----------------------------
