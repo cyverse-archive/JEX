@@ -61,6 +61,7 @@
    "+IpcUuid = \"" uuid "\"\n"
    "+IpcJobId = \"generated_script\"\n"
    "+IpcUsername = \"" username "\"\n"
+   "+Owner = \"" username "\"\n"
    (ipc-exe analysis-map)
    (ipc-exe-path analysis-map)
    "should_transfer_files = NO\n"
