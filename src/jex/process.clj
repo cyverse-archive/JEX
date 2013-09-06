@@ -144,10 +144,10 @@
   "Logs the result of the call to condor_submit."
   [{:keys [exit out err]}]
   (log/warn (str "Exit code of condor-submit: " exit))
-  (log/info (str "condor-submit-dag stdout:"))
-  (log/info out)
-  (log/info (str "condor-submit-dag stderr:"))
-  (log/info err))
+  (log/warn (str "condor-submit-dag stdout:"))
+  (log/warn out)
+  (log/warn (str "condor-submit-dag stderr:"))
+  (log/warn err))
 
 (defn parse-sub-id
   "Parses out the submission id from the output of the condor_submit."
@@ -205,7 +205,7 @@
   "Submits a job to Condor. sub-path should be the path to a Condor submission
    file."
   [sub-path]
-  (let [result (sh/with-sh-env (condor-env) (sh/sh "condor_submit" sub-path))]
+  (let [result (sh/with-sh-env (condor-env) (sh/sh "csub" sub-path))]
     (log-submit-results result)
     result))
 

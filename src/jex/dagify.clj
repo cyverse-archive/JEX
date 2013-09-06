@@ -57,7 +57,7 @@
    "arguments = \"" script-path "\"\n"
    "output = " (script-output working_dir) "\n"
    "error = " (script-error working_dir) "\n"
-   "log = " (script-log local-log-dir) "\n"
+   #_("log = " (script-log local-log-dir) "\n")
    "+IpcUuid = \"" uuid "\"\n"
    "+IpcJobId = \"generated_script\"\n"
    "+IpcUsername = \"" username "\"\n"
@@ -109,17 +109,26 @@
      "EXITSTATUS=0\n"
      (join "\n" (map script-line (jobs-in-order analysis-map)))
      "popd\n"
-     "rm -r " job-dir "\n"
+     #_("rm -r " job-dir "\n")
      "exit $EXITSTATUS\n")))
 
 (defn create-submission-directory
   "Creates the local directory where the iplant.sh and iplant.cmd files get
    written out to."
   [{script-dir :working_dir :as analysis-map}]
-  (let [dag-log-dir (ut/path-join script-dir "logs")]                     
+  (let [dag-log-dir (ut/path-join script-dir "logs")
+        dag-log-dir-file (File. dag-log-dir)]
     (log/info (str "Creating submission directories: " dag-log-dir))
+    
+    (doto dag-log-dir-file (.getParent) (.setWritable true false))
+    
     (if-not (.mkdirs (File. dag-log-dir))
       (log/warn (str "Failed to create directory: " dag-log-dir)))
+    
+    (.setWritable (File. script-dir) true false)
+    (.setWritable (File. dag-log-dir) true false)
+    (.setReadable (File. script-dir) true false)
+    (.setReadable (File. dag-log-dir) true false)
     analysis-map))
 
 (defn local-log-dir
@@ -132,8 +141,14 @@
   [analysis-map]
   (let [local-logs (local-log-dir analysis-map)]
     (log/info (str "Creating the local log directory: " local-logs))
+    (doto (File. local-logs) (.getParent) (.setWritable true false))
+    
     (if-not (.mkdirs (File. local-logs))
       (log/warn (str "Failed to create directory " local-logs)))
+    
+    (.setWritable (File. local-logs) true false)
+    (.setReadable (File. local-logs) true false)
+    
     analysis-map))
 
 (defn scriptpath
@@ -149,15 +164,26 @@
 (defn generate-script-submission
   "Generates and writes out the iplant.sh and iplant.cmd files."
   [analysis-map]
-  (spit (scriptpath analysis-map) (script analysis-map))
-  (spit (irods-config-path analysis-map) (irods-config))
-  (spit
-   (script-command-file analysis-map)
-   (script-submission
-    (merge
-     analysis-map
-     {:script-path (scriptpath analysis-map)
-      :local-log-dir (local-log-dir analysis-map)})))
+  (let [spath (scriptpath analysis-map)
+        ipath (irods-config-path analysis-map)
+        cpath (script-command-file analysis-map)]
+    (spit spath (script analysis-map))
+    (.setReadable (File. spath) true false)
+    (.setWritable (File. spath) true false)
+    
+    (spit ipath (irods-config))
+    (.setReadable (File. ipath) true false)
+    (.setWritable (File. ipath) true false)
+    
+    (spit
+      cpath
+      (script-submission
+        (merge
+          analysis-map
+          {:script-path (scriptpath analysis-map)
+           :local-log-dir (local-log-dir analysis-map)})))
+    (.setReadable (File. cpath) true false)
+    (.setWritable (File. cpath) true false))
   analysis-map)
 
 (defn cleanup-analysis-map
