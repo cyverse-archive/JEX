@@ -91,6 +91,12 @@
              "\tEXITSTATUS=1\n"
          "fi\n")))
 
+(def fail-script
+  (str "if [ ! \"$?\" -eq \"0\" ]; then\n"
+           "\tEXITSTATUS=1\n"
+           "\texit $EXITSTATUS\n"
+       "fi\n"))
+
 (defn script
   "Takes in an analysis map that has been processed by
    (jex.incoming-xforms/transform) and turns it into a shell script
@@ -102,9 +108,13 @@
     (str 
      "#!/bin/bash\n"
      "cd ~\n"
+     fail-script
      "mkdir -p " job-dir "\n"
+     fail-script
      "pushd " job-dir "\n"
+     fail-script
      "mkdir -p logs\n"
+     fail-script
      "EXITSTATUS=0\n"
      (join "\n" (map script-line (jobs-in-order analysis-map)))
      "popd\n"
