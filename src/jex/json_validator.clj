@@ -14,6 +14,13 @@
     true
     false))
 
+(defn acceptable-output-folder?
+  [username path-to-check]
+  (log/warn "[jex] acceptable-output-folder" username path-to-check)
+  (and (not (.startsWith path-to-check "/iplant/home/shared"))
+       (.startsWith path-to-check (str "/iplant/home/" (first (string/split username #"\@"))))
+       (not (.startsWith path-to-check "/iplant/trash"))))
+
 (defn valid?
   [json-map validators]
   (every? true? (for [vd validators] (vd json-map))))
