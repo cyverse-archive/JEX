@@ -33,8 +33,8 @@
   "Validates a submission."
   [submit-map]
   (log/warn "validate-submission")
-  (and (acceptable-output-folder? (:username submit-map) (:output_dir submit-map))
-       (valid? submit-map validators)))
+  (and (valid? submit-map validators) 
+       (acceptable-output-folder? (:username submit-map) (:output_dir submit-map))))
 
 (defn condor-env []
   {"PATH"          (cfg/path-env)
