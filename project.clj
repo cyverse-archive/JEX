@@ -9,7 +9,7 @@
                  [slingshot "0.10.3"]]
   :iplant-rpm {:summary "jex",
                :runuser "condor"
-               :dependencies ["iplant-service-config >= 0.1.0-5" "iplant-clavin"],
+               :dependencies ["iplant-service-config >= 0.1.0-5" "iplant-clavin" "java-1.7.0-openjdk"],
                :config-files ["log4j.properties"],
                :config-path "conf"}
   :profiles {:dev {:dependencies [[midje "1.4.0"]
