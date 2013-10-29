@@ -107,6 +107,8 @@
         irods-cfg (irods-config-path analysis-map)]
     (str 
      "#!/bin/bash\n"
+     "readonly IPLANT_USER=" (:username analysis-map) "\n"
+     "export IPLANT_USER\n"
      "cd ~\n"
      fail-script
      "mkdir -p " job-dir "\n"
