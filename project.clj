@@ -5,7 +5,7 @@
                  [cheshire "5.0.1"]
                  [compojure "1.0.1"]
                  [ring/ring-jetty-adapter "1.0.1"]
-                 [org.iplantc/clojure-commons "1.4.5-SNAPSHOT"]
+                 [org.iplantc/clojure-commons "1.4.6-SNAPSHOT"]
                  [slingshot "0.10.3"]]
   :iplant-rpm {:summary "jex",
                :runuser "condor"
