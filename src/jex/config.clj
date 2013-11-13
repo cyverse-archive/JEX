@@ -119,6 +119,15 @@
   (when-not (cc/validate-config configs config-valid)
     (throw+ {:error_code ce/ERR_CONFIG_INVALID})))
 
+(defn- exception-filters
+  []
+  (mapv #(re-pattern (str %))
+        [(irods-user) (irods-pass)]))
+
+(defn register-exception-filters
+  []
+  (ce/register-filters (exception-filters)))
+
 (defn load-config-from-file
   "Loads the configuration settings from a file."
   []
